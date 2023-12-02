@@ -1,0 +1,32 @@
+{
+    "canisters": {
+ 
+        "icrc3": {
+            "main": "example/main.mo",
+            "type": "motoko",
+            "gzip": true
+        },
+        "archive": {
+          "main": "actor/archive.mo",
+          "type": "motoko",
+          "gzip": true
+        },
+        "test_runner": {
+          "main": "testActor/test_runner.mo",
+          "type": "motoko",
+          "gzip": true
+        }
+        
+    },
+    "defaults": {
+        "build": {
+            "args": "",
+            "packtool": "mops sources"
+        },
+        "replica": {
+            "subnet_type": "application"
+        }
+    },
+    "dfx": "0.15.1",
+    "version": 1
+}
