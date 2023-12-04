@@ -1,3 +1,12 @@
+///////////////////////////////////////////////////////////////////////////////////////////
+/// Base Library for ICRC-7, ICRC-30, and ICRC-3 Standards
+///
+/// This library includes the necessary functions, types, and classes to build an ICRC-3 standard transactionlog. It provides an implementation of the
+/// ICRC3 class which manages the transaction ledger, archives, and certificate store.
+///
+///
+///////////////////////////////////////////////////////////////////////////////////////////
+
 import MigrationTypes "./migrations/types";
 import Migration "./migrations";
 import Archive "/archive/";
@@ -15,6 +24,7 @@ import Nat "mo:base/Nat";
 import Text "mo:base/Text";
 import Vec "mo:vector";
 import Map "mo:map9/Map";
+import Set "mo:map9/Set";
 import RepIndy "mo:rep-indy-hash";
 import SW "mo:stable-write-only";
 import HelperLib "helper";
@@ -23,7 +33,10 @@ import MTree "mo:cert/MerkleTree";
 
 module {
 
-  ///used to turn on debugging messages
+  /// Debug channel configuration
+  ///
+  /// The debug_channel object is used to enable/disable different debugging
+  /// messages during runtime.
   let debug_channel = {
     add_record = false;
     certificate = false;
@@ -31,10 +44,13 @@ module {
     get_transactions = false;
   };
 
+  /// Represents the current state of the migration
   public type CurrentState = MigrationTypes.Current.State;
 
+  /// Arguments for initializing the migration
   public type InitArgs = MigrationTypes.Current.InitArgs;
 
+  /// Represents a transaction
   public type Transaction = MigrationTypes.Current.Transaction;
   public type Value = MigrationTypes.Current.Value;
   public type State = MigrationTypes.State;
@@ -46,22 +62,48 @@ module {
   public type GetArchivesArgs = MigrationTypes.Current.GetArchivesArgs;
   public type GetArchivesResult = MigrationTypes.Current.GetArchivesResult;
   public type GetArchivesResultItem = MigrationTypes.Current.GetArchivesResultItem;
+
+  /// Represents the IC actor
   public type IC = MigrationTypes.Current.IC;
 
 
+  /// Represents the environment object passed to the ICRC3 class
   public type Environment = ?{
     updated_certification : ?((Blob, Nat) -> Bool); //called when a certification has been made
     get_certificate_store : ?(() -> CertTree.Store); //needed to pass certificate store to the class
   };
 
+  /// Initializes the initial state
+  ///
+  /// Returns the initial state of the migration.
   public func initialState() : State {#v0_0_0(#data)};
+
+  /// Returns the current state version
   public let currentStateVersion = #v0_1_0(#id);
 
+  /// Initializes the migration
+  ///
+  /// This function is used to initialize the migration with the provided stored state.
+  ///
+  /// Arguments:
+  /// - `stored`: The stored state of the migration (nullable)
+  /// - `canister`: The canister ID of the migration
+  /// - `environment`: The environment object containing optional callbacks and functions
+  ///
+  /// Returns:
+  /// - The current state of the migration
   public let init = Migration.migrate;
+
+  /// Helper library for common functions
   public let helper = HelperLib;
 
+  /// The ICRC3 class manages the transaction ledger, archives, and certificate store.
+  ///
+  /// The ICRC3 class provides functions for adding a record to the ledger, getting
+  /// archives, getting the certificate, and more.
   public class ICRC3(stored: ?State, canister: Principal, environment: Environment){
 
+    /// The current state of the migration
     var state : CurrentState = switch(stored){
       case(null) {
         let #v0_1_0(#data(foundState)) = init(initialState(),currentStateVersion, null, canister);
@@ -73,9 +115,19 @@ module {
       };
     };
 
+    /// The migrate function
     public let migrate = Migration.migrate;
+
+    /// The IC actor used for updating archive controllers
     private let ic : IC = actor "aaaaa-aa";
 
+    /// Encodes a number as big-endian bytes
+    ///
+    /// Arguments:
+    /// - `nat`: The number to encode
+    ///
+    /// Returns:
+    /// - The encoded bytes
     func encodeBigEndian(nat: Nat): Blob {
       var tempNat = nat;
       var bitCount = 0;
@@ -95,7 +147,19 @@ module {
       return Blob.fromArray(Vec.toArray<Nat8>(buffer));
     };
 
-    /// adds a record to the transaction ledger
+    /// Adds a record to the transaction ledger
+    ///
+    /// This function adds a new record to the transaction ledger.
+    ///
+    /// Arguments:
+    /// - `new_record`: The new record to add
+    /// - `top_level`: The top level value (nullable)
+    ///
+    /// Returns:
+    /// - The index of the new record
+    ///
+    /// Throws:
+    /// - An error if the `op` field is missing from the transaction
     public func add_record(new_record: Transaction, top_level: ?Value) : Nat {
 
       //validate that the trx has an op field according to ICRC3
@@ -200,7 +264,15 @@ module {
       return state.lastIndex;
     };
 
-    /// returns the archive index for the ledger according to ICRC3
+    /// Returns the archive index for the ledger
+    ///
+    /// This function returns the archive index for the ledger.
+    ///
+    /// Arguments:
+    /// - `request`: The archive request
+    ///
+    /// Returns:
+    /// - The archive index
     public func get_archives(request: GetArchivesArgs) : GetArchivesResult {
       let results = Vec.new<GetArchivesResultItem>();
        
@@ -251,7 +323,12 @@ module {
       return Vec.toArray(results);
     };
 
-    /// returns the certificate for the ledger according to ICRC3
+    /// Returns the certificate for the ledger
+    ///
+    /// This function returns the certificate for the ledger.
+    ///
+    /// Returns:
+    /// - The data certificate (nullable)
     public func get_tip_certificate() : ?DataCertificate{
       debug if(debug_channel.certificate) D.print("in get tip certificate");
       switch(environment){
@@ -285,7 +362,12 @@ module {
       return null;
     };
 
-    /// returns the latest hash and lastest index along with a witness
+    /// Returns the latest hash and lastest index along with a witness
+    ///
+    /// This function returns the latest hash, latest index, and the witness for the ledger.
+    ///
+    /// Returns:
+    /// - The tip information
     public func get_tip() : Tip {
       debug if(debug_channel.certificate) D.print("in get tip certificate");
       switch(environment){
@@ -317,17 +399,24 @@ module {
       D.trap("no environment");
     };
 
+
+    /// Updates the controllers for the given canister
+    ///
+    /// This function updates the controllers for the given canister.
+    ///
+    /// Arguments:
+    /// - `canisterId`: The canister ID
     private func update_controllers(canisterId : Principal) : async (){
-
-
       switch(state.constants.archiveProperties.archiveControllers){
         case(?val){
-          switch(val){
+          let final_list = switch(val){
             case(?list){
-
+              let a_set = Set.fromIter<Principal>(list.vals(), Map.phash);
+              Set.add(a_set, Map.phash, canister);
+              ?Set.toArray(a_set);
             };
             case(null){
-
+              ?[canister];
             };
           };
           ignore ic.update_settings(({canister_id = canisterId; settings = {
@@ -342,7 +431,11 @@ module {
 
       return;
     };
-    /// runs the clean up process to move records to archive canisters
+
+
+    /// Runs the clean up process to move records to archive canisters
+    ///
+    /// This function runs the clean up process to move records to archive canisters.
     public func check_clean_up() : async (){
 
       //clear the timer
@@ -518,10 +611,16 @@ module {
     };
 
     type TransactionTypes = {
-        id: Nat;
-        transaction: Transaction;
-      };
+      id: Nat;
+      transaction: Transaction;
+    };
 
+    /// Returns the statistics of the migration
+    ///
+    /// This function returns the statistics of the migration.
+    ///
+    /// Returns:
+    /// - The migration statistics
     public func stats() : Stats {
       return {
         localLedgerSize = Vec.size(state.ledger);
@@ -543,7 +642,15 @@ module {
       };
     };
 
-    /// returns a set of transactions and pointers to archives if necessary
+    /// Returns a set of transactions and pointers to archives if necessary
+    ///
+    /// This function returns a set of transactions and pointers to archives if necessary.
+    ///
+    /// Arguments:
+    /// - `args`: The transaction range
+    ///
+    /// Returns:
+    /// - The result of getting transactions
     public func get_transactions(args: TransactionRange) : MigrationTypes.Current.GetTransactionsResult{
 
       debug if(debug_channel.get_transactions) D.print("get_transaction_states" # debug_show(stats()));
