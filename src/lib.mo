@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////////////////
-/// Base Library for ICRC-7, ICRC-30, and ICRC-3 Standards
+/// Base Library for ICRC-3 Standards
 ///
 /// This library includes the necessary functions, types, and classes to build an ICRC-3 standard transactionlog. It provides an implementation of the
 /// ICRC3 class which manages the transaction ledger, archives, and certificate store.
