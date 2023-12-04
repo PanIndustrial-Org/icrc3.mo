@@ -77,6 +77,12 @@ public type Environment = ?{
   };
 ```
 
+## Maintenance and Archival
+
+Each time a transaction is added, the ledger checks to see if it has exceeded its max length. If it has, it sets a timer to run in the next round to run the archive.  It will only attempt to archive a chunk at a time as configured and will set it self to run again if it was unable to reach its settled records.
+
+When the first archive reaches its limit, the class will create a new archive canister and send it the number of configured cycles. It will fail silently if there are not enough cycles.
+
 ## Transaction Log Best Practices
 
 This class supports an ICRC3 style, write only transaction log. It supports archiving to other canisters on the same subnet.  Multi subnet archiving and archive splitting is not yet supported, but is planned for future versions.
