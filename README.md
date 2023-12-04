@@ -2,7 +2,7 @@
 
 ## Install
 ```
-mops add icrc3.mo
+mops add icrc3-mo
 ```
 
 ## Usage
