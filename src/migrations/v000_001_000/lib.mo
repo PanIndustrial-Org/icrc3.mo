@@ -34,6 +34,7 @@ module {
               var archiveIndexType = #Stable;
               var maxRecordsToArchive = 10_000;
               var archiveCycles = 2_000_000_000_000; //two trillion
+              var archiveControllers = null;
             };
           };
           case(?val){
@@ -45,12 +46,12 @@ module {
               var archiveIndexType = val.archiveIndexType;
               var maxRecordsToArchive = val.maxRecordsToArchive;
               var archiveCycles = val.archiveCycles;
+              var archiveControllers = val.archiveControllers;
             };
           };
         };
       };
     };
-
     return #v0_1_0(#data(state));
   };
 

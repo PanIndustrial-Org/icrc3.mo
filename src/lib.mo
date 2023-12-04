@@ -33,15 +33,7 @@ module {
 
   public type CurrentState = MigrationTypes.Current.State;
 
-  public type InitArgs = ?{
-    maxActiveRecords : Nat;
-    settleToRecords : Nat; //canister will settle the number of active records to this amount
-    maxRecordsInArchiveInstance : Nat;
-    maxRecordsToArchive : Nat; //canister will settle records over iterations of this chunk size
-    maxArchivePages : Nat; //max number of memory pages in the archive stable memory
-    archiveIndexType : SW.IndexType;
-    archiveCycles : Nat; //number of cycles to send to the archive canister
-  };
+  public type InitArgs = MigrationTypes.Current.InitArgs;
 
   public type Transaction = MigrationTypes.Current.Transaction;
   public type Value = MigrationTypes.Current.Value;
@@ -51,6 +43,10 @@ module {
   public type GetTransactionsResult = MigrationTypes.Current.GetTransactionsResult;
   public type DataCertificate = MigrationTypes.Current.DataCertificate;
   public type Tip = MigrationTypes.Current.Tip;
+  public type GetArchivesArgs = MigrationTypes.Current.GetArchivesArgs;
+  public type GetArchivesResult = MigrationTypes.Current.GetArchivesResult;
+  public type GetArchivesResultItem = MigrationTypes.Current.GetArchivesResultItem;
+  public type IC = MigrationTypes.Current.IC;
 
 
   public type Environment = ?{
@@ -78,6 +74,7 @@ module {
     };
 
     public let migrate = Migration.migrate;
+    private let ic : IC = actor "aaaaa-aa";
 
     func encodeBigEndian(nat: Nat): Blob {
       var tempNat = nat;
@@ -203,6 +200,57 @@ module {
       return state.lastIndex;
     };
 
+    /// returns the archive index for the ledger according to ICRC3
+    public func get_archives(request: GetArchivesArgs) : GetArchivesResult {
+      let results = Vec.new<GetArchivesResultItem>();
+       
+      var bFound = switch(request.from){
+        case(null) true;
+        case(?val) false;
+      };
+      if(bFound == true){
+          Vec.add(results,{
+            canister_id = canister;
+            start = state.firstIndex;
+            end = state.lastIndex;
+          });
+        } else {
+          switch(request.from){
+            case(null) {}; //unreachable
+            case(?val) {
+              if(canister == val){
+                bFound := true;
+              };
+            };
+          };
+        };
+
+      for(thisItem in Map.entries<Principal, TransactionRange>(state.archives)){
+        if(bFound == true){
+          if(thisItem.1.start + thisItem.1.length >= 1){
+            Vec.add(results,{
+              canister_id = thisItem.0;
+              start = thisItem.1.start;
+              end = Nat.sub(thisItem.1.start + thisItem.1.length, 1);
+            });
+          } else{
+            D.trap("found archive with length of 0");
+          };
+        } else {
+          switch(request.from){
+            case(null) {}; //unreachable
+            case(?val) {
+              if(thisItem.0 == val){
+                bFound := true;
+              };
+            };
+          };
+        };
+      };
+
+      return Vec.toArray(results);
+    };
+
     /// returns the certificate for the ledger according to ICRC3
     public func get_tip_certificate() : ?DataCertificate{
       debug if(debug_channel.certificate) D.print("in get tip certificate");
@@ -238,7 +286,7 @@ module {
     };
 
     /// returns the latest hash and lastest index along with a witness
-    public func get_tip() : Tip{
+    public func get_tip() : Tip {
       debug if(debug_channel.certificate) D.print("in get tip certificate");
       switch(environment){
         case(null){};
@@ -269,6 +317,31 @@ module {
       D.trap("no environment");
     };
 
+    private func update_controllers(canisterId : Principal) : async (){
+
+
+      switch(state.constants.archiveProperties.archiveControllers){
+        case(?val){
+          switch(val){
+            case(?list){
+
+            };
+            case(null){
+
+            };
+          };
+          ignore ic.update_settings(({canister_id = canisterId; settings = {
+                    controllers = val;
+                    freezing_threshold = null;
+                    memory_allocation = null;
+                    compute_allocation = null;
+          }}));
+        };
+        case(_){};    
+      };
+
+      return;
+    };
     /// runs the clean up process to move records to archive canisters
     public func check_clean_up() : async (){
 
@@ -289,7 +362,7 @@ module {
       debug if(debug_channel.clean_up) D.print("Now we are cleaning");
 
       let (archive_detail, available_capacity) = if(Map.size(state.archives) == 0){
-        //no archive existscreate a new canister
+        //no archive exists - create a new canister
         //add cycles;
         debug if(debug_channel.clean_up) D.print("Creating a canister");
 
@@ -309,6 +382,9 @@ module {
           maxPages = state.constants.archiveProperties.maxArchivePages;
           firstIndex = 0;
         });
+        //set archive controllers calls async
+        ignore update_controllers(Principal.fromActor(newArchive));
+
         let newItem = {
           start = 0;
           length = 0;
@@ -461,6 +537,7 @@ module {
             maxRecordsInArchiveInstance = state.constants.archiveProperties.maxRecordsInArchiveInstance;
             maxRecordsToArchive = state.constants.archiveProperties.maxRecordsToArchive;
             archiveCycles = state.constants.archiveProperties.archiveCycles;
+            archiveControllers = state.constants.archiveProperties.archiveControllers;
           };
         };
       };
@@ -488,8 +565,9 @@ module {
           debug if(debug_channel.get_transactions) D.print("setting start " # debug_show(0));
           0;
         } else{
-          if(state.lastIndex >= (args.start + 1)){
-            Nat.sub(state.lastIndex, (args.start + 1));
+          D.print("getting trx" # debug_show(state.lastIndex, state.firstIndex, args));
+          if(args.start >= (state.firstIndex)){
+            Nat.sub(args.start, (state.firstIndex));
           } else {
             D.trap("last index must be larger than requested start plus one");
           };

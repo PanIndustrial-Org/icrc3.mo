@@ -51,6 +51,7 @@ module {
         var maxArchivePages : Nat;
         var archiveIndexType : SW.IndexType;
         var archiveCycles : Nat;
+        var archiveControllers : ??[Principal];
       };
     };
   };
@@ -70,6 +71,7 @@ module {
         maxRecordsInArchiveInstance : Nat;
         maxRecordsToArchive : Nat;
         archiveCycles : Nat;
+        archiveControllers : ??[Principal];
       };
     };
   };
@@ -90,6 +92,26 @@ module {
         args : TransactionRange;
         callback : GetTransactionsFn;
     };
+
+  public type GetArchivesArgs =  {
+    // The last archive seen by the client.
+    // The Ledger will return archives coming
+    // after this one if set, otherwise it
+    // will return the first archives.
+      from : ?Principal;
+  };
+  public type GetArchivesResult = [GetArchivesResultItem];
+
+  public type GetArchivesResultItem = {
+    // The id of the archive
+    canister_id : Principal;
+
+    // The first block in the archive
+    start : Nat;
+
+    // The last block in the archive
+    end : Nat;
+  };
 
   public type DataCertificate = {
 
@@ -153,6 +175,20 @@ module {
       remaining_capacity : shared query () -> async Nat;
     };
 
+    public type canister_settings = {
+        controllers : ?[Principal];
+        freezing_threshold : ?Nat;
+        memory_allocation : ?Nat;
+        compute_allocation : ?Nat;
+    };
+
+    public type IC = actor {
+        update_settings : shared {
+            canister_id : Principal;
+            settings : canister_settings;
+        } -> async ();
+    };
+
     public type ArchiveInitArgs = {
       maxRecords : Nat;
       maxPages : Nat;
@@ -172,11 +208,7 @@ module {
       archiveIndexType : SW.IndexType;
       maxRecordsToArchive : Nat;
       archiveCycles : Nat;
-    };
-
-    public type InitArgsType = {
-      archiveInit : ArchiveInitArgs;
-      initArgs: InitArgs;
+      archiveControllers : ??[Principal];
     };
 
 };

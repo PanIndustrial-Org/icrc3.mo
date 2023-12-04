@@ -106,83 +106,10 @@ shared ({ caller = ledger_canister_id }) actor class Archive (_args : T.Current.
           log_length =  0;
           certificate = null;
         };
-       /*  let { start; length } = req;
-
-        D.print("had a call to the archive for " # debug_show(req));
-        
-        let vec = Vec.new<{id:Nat; transaction: Transaction}>();
-
-        let end = start + length - args.firstIndex;
-        var tracker = start - args.firstIndex;
-        let stats = sw.stats();
-
-        D.print("had a call to the archive for " # debug_show(end, tracker, stats));
-        
-
-        label build loop{
-          let ?t = (from_candid(sw.read(tracker)) : ?Transaction);
-          Vec.add(vec, {id =tracker + args.firstIndex; transaction = t});
-          if(tracker >= stats.itemCount or tracker >= end) break build;
-        };
-
-        { 
-          blocks = Vec.toArray(vec);
-          archived_blocks = [];
-          log_length =  0;
-          certificate = null;
-        }; */
-      /* let stats = sw.stats();
-        D.print("get_transaction_states" # debug_show(stats));
-      let local_ledger_length = stats.itemCount;
-      let last_index = args.firstIndex + local_ledger_length;
-
-
-      //get the transactions on this canister
-      let vec = Vec.new<{id:Nat; transaction: Transaction}>();
-      D.print("setting start " # debug_show(req.start + req.length, args.firstIndex));
-      if(req.start + req.length > args.firstIndex){
-        D.print("setting start " # debug_show(req.start + req.length, args.firstIndex));
-        let start = if(req.start <= args.firstIndex){
-          D.print("setting start " # debug_show(0));
-          0;
-        } else{
-         
-          last_index - args.firstIndex + 1;
-        };
-
-        let end = if(local_ledger_length==0){
-          0;
-        } else if(req.start + req.length >= last_index){
-          local_ledger_length - 1;
-        } else {
-          (last_index - args.firstIndex) - (last_index - (req.start + req.length))
-        };
-
-        D.print("getting local transactions" # debug_show(start,end));
-        //some of the items are on this server
-        if(local_ledger_length > 0){
-          label search for(thisItem in Iter.range(start, end)){
-            D.print("testing" # debug_show(thisItem));
-            if(thisItem >= Vec.size(state.ledger)){
-              break search;
-            };
-            Vec.add(vec, {
-                id = args.firstIndex + thisItem;
-                transaction = Vec.get(state.ledger, thisItem)
-            });
-          };
-        };
-
-      };
-
-      D.print("returning transactions result" # debug_show( Vec.size(vec)));
-      //build the result
-      return {
-        log_length = 0;
-        certificate = null;
-        blocks = Vec.toArray(vec);
-        archived_blocks = [];
-      } */
+       /*  
+       
+       Currently this archive canister only supports one level of archive indexes. It does not have the ability to split itself and create a tree structure.
+       */
     };
 
     public shared query func remaining_capacity() : async Nat {
@@ -194,6 +121,11 @@ shared ({ caller = ledger_canister_id }) actor class Archive (_args : T.Current.
         let amount = ExperimentalCycles.available();
         let accepted = ExperimentalCycles.accept(amount);
         assert (accepted == amount);
+    };
+
+    /// Get the remaining cylces on the server
+    public query func cycles() : async Nat {
+        ExperimentalCycles.balance();
     };
 
 };
