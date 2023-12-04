@@ -30,6 +30,7 @@ shared(init_msg) actor class() = this {
     archiveIndexType = #Stable;
     maxRecordsToArchive = 10_000;
     archiveCycles = 2_000_000_000_000; //two trillion
+    archiveControllers = null;
   };
 
   public shared func test() : async {
@@ -546,7 +547,7 @@ shared(init_msg) actor class() = this {
         D.print("length was " # debug_show(smallLocalResponse.log_length));
         D.print("transactions was " # debug_show(smallLocalResponse.blocks));
         D.print("archive was " # debug_show(Array.map<ICRC3Types.Current.ArchivedTransactionResponse, (Principal, ICRC3Types.Current.TransactionRange)>(smallLocalResponse.archived_blocks, func(x: ICRC3Types.Current.ArchivedTransactionResponse) : (Principal, ICRC3Types.Current.TransactionRange){
-          (Principal.fromActor(this), x.args)
+          (Principal.fromActor(this), x.args) //note...not actual item
         })));
 
         //D.print("reading preResponse3 " # debug_show(dataResponse));
