@@ -80,24 +80,26 @@ shared ({ caller = ledger_canister_id }) actor class Archive (_args : T.Current.
         return t;
     };
 
-    public shared query func icrc3_get_blocks(req : T.Current.TransactionRange) : async T.Current.GetTransactionsResult {
+    public shared query func icrc3_get_blocks(req : [T.Current.TransactionRange]) : async T.Current.GetTransactionsResult {
 
       D.print("request for archive blocks " # debug_show(req));
 
       let vec = Vec.new<{id:Nat; transaction: Transaction}>();
-      var tracker = req.start;
-      for(thisItem in Iter.range(req.start, req.start + req.length - 1)){
-        D.print("getting" # debug_show(thisItem));
-        switch(_get_transaction(thisItem)){
-          case(null){
-            //should be unreachable...do we return an error?
+      for(thisArg in req.vals()){
+        var tracker = thisArg.start;
+        for(thisItem in Iter.range(thisArg.start, thisArg.start + thisArg.length - 1)){
+          D.print("getting" # debug_show(thisItem));
+          switch(_get_transaction(thisItem)){
+            case(null){
+              //should be unreachable...do we return an error?
+            };
+            case(?val){
+              D.print("found" # debug_show(val));
+              Vec.add(vec, {id = tracker; transaction = val});
+            };
           };
-          case(?val){
-            D.print("found" # debug_show(val));
-            Vec.add(vec, {id = tracker; transaction = val});
-          };
+          tracker += 1;
         };
-        tracker += 1;
       };
 
       { 

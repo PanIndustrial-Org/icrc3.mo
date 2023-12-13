@@ -89,7 +89,7 @@ module {
   };
 
   public type ArchivedTransactionResponse = {
-        args : TransactionRange;
+        args : [TransactionRange];
         callback : GetTransactionsFn;
     };
 
@@ -149,7 +149,7 @@ module {
   };
 
 
-  public type GetTransactionsFn = shared query (TransactionRange) -> async GetTransactionsResult;
+  public type GetTransactionsFn = shared query ([TransactionRange]) -> async GetTransactionsResult;
 
   public type ICRC3Interface = actor {
     icrc3_get_blocks : GetTransactionsFn;

@@ -7,7 +7,7 @@
             "gzip": true
         },
         "archive": {
-          "main": "actor/archive.mo",
+          "main": "src/archive/lib.mo",
           "type": "motoko",
           "gzip": true
         },
@@ -27,6 +27,6 @@
             "subnet_type": "application"
         }
     },
-    "dfx": "0.15.1",
+    "dfx": "0.15.2",
     "version": 1
 }

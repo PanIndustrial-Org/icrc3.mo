@@ -11,6 +11,7 @@ import MigrationTypes "./migrations/types";
 import Migration "./migrations";
 import Archive "/archive/";
 
+import Array "mo:base/Array";
 import Blob "mo:base/Blob";
 import D "mo:base/Debug";
 import CertifiedData "mo:base/CertifiedData";
@@ -651,7 +652,7 @@ module {
     ///
     /// Returns:
     /// - The result of getting transactions
-    public func get_transactions(args: TransactionRange) : MigrationTypes.Current.GetTransactionsResult{
+    public func get_transactions(args: [TransactionRange]) : MigrationTypes.Current.GetTransactionsResult{
 
       debug if(debug_channel.get_transactions) D.print("get_transaction_states" # debug_show(stats()));
       let local_ledger_length = Vec.size(state.ledger);
@@ -665,90 +666,110 @@ module {
 
       //get the transactions on this canister
       let vec = Vec.new<TransactionTypes>();
-      debug if(debug_channel.get_transactions) D.print("setting start " # debug_show(args.start + args.length, state.firstIndex));
-      if(args.start + args.length > state.firstIndex){
-        debug if(debug_channel.get_transactions) D.print("setting start " # debug_show(args.start + args.length, state.firstIndex));
-        let start = if(args.start <= state.firstIndex){
-          debug if(debug_channel.get_transactions) D.print("setting start " # debug_show(0));
-          0;
-        } else{
-          D.print("getting trx" # debug_show(state.lastIndex, state.firstIndex, args));
-          if(args.start >= (state.firstIndex)){
-            Nat.sub(args.start, (state.firstIndex));
-          } else {
-            D.trap("last index must be larger than requested start plus one");
-          };
-        };
-
-        let end = if(Vec.size(state.ledger)==0){
-          0;
-        } else if(args.start + args.length >= state.lastIndex){
-          Nat.sub(Vec.size(state.ledger), 1);
-        } else {
-          Nat.sub((Nat.sub(state.lastIndex,state.firstIndex)), (Nat.sub(state.lastIndex, (args.start + args.length))))
-        };
-
-        debug if(debug_channel.get_transactions) D.print("getting local transactions" # debug_show(start,end));
-        //some of the items are on this server
-        if(Vec.size(state.ledger) > 0){
-          label search for(thisItem in Iter.range(start, end)){
-            debug if(debug_channel.get_transactions) D.print("testing" # debug_show(thisItem));
-            if(thisItem >= Vec.size(state.ledger)){
-              break search;
+      for(thisArg in args.vals()){
+        debug if(debug_channel.get_transactions) D.print("setting start " # debug_show(thisArg.start + thisArg.length, state.firstIndex));
+        if(thisArg.start + thisArg.length > state.firstIndex){
+          debug if(debug_channel.get_transactions) D.print("setting start " # debug_show(thisArg.start + thisArg.length, state.firstIndex));
+          let start = if(thisArg.start <= state.firstIndex){
+            debug if(debug_channel.get_transactions) D.print("setting start " # debug_show(0));
+            0;
+          } else{
+            D.print("getting trx" # debug_show(state.lastIndex, state.firstIndex, thisArg));
+            if(thisArg.start >= (state.firstIndex)){
+              Nat.sub(thisArg.start, (state.firstIndex));
+            } else {
+              D.trap("last index must be larger than requested start plus one");
             };
-            Vec.add(vec, {
-                id = state.firstIndex + thisItem;
-                transaction = Vec.get(state.ledger, thisItem)
-            });
           };
-        };
 
+          let end = if(Vec.size(state.ledger)==0){
+            0;
+          } else if(thisArg.start + thisArg.length >= state.lastIndex){
+            Nat.sub(Vec.size(state.ledger), 1);
+          } else {
+            Nat.sub((Nat.sub(state.lastIndex,state.firstIndex)), (Nat.sub(state.lastIndex, (thisArg.start + thisArg.length))))
+          };
+
+          debug if(debug_channel.get_transactions) D.print("getting local transactions" # debug_show(start,end));
+          //some of the items are on this server
+          if(Vec.size(state.ledger) > 0){
+            label search for(thisItem in Iter.range(start, end)){
+              debug if(debug_channel.get_transactions) D.print("testing" # debug_show(thisItem));
+              if(thisItem >= Vec.size(state.ledger)){
+                break search;
+              };
+              Vec.add(vec, {
+                  id = state.firstIndex + thisItem;
+                  transaction = Vec.get(state.ledger, thisItem)
+              });
+            };
+          };
+
+        };
       };
 
       //get any relevant archives
-      let archives = Vec.new<MigrationTypes.Current.ArchivedTransactionResponse>();
+      let archives = Map.new<Principal, (Vec.Vector<TransactionRange>, MigrationTypes.Current.GetTransactionsFn)>();
 
-      if(args.start < state.firstIndex){
-        
-        debug if(debug_channel.get_transactions) D.print("archive settings are " # debug_show(Iter.toArray(Map.entries(state.archives))));
-        var seeking = args.start;
-        label archive for(thisItem in Map.entries(state.archives)){
-          if (seeking > Nat.sub(thisItem.1.start + thisItem.1.length, 1) or args.start + args.length <= thisItem.1.start) {
-              continue archive;
-          };
+      for(thisArgs in args.vals()){
+        if(thisArgs.start < state.firstIndex){
+          
+          debug if(debug_channel.get_transactions) D.print("archive settings are " # debug_show(Iter.toArray(Map.entries(state.archives))));
+          var seeking = thisArgs.start;
+          label archive for(thisItem in Map.entries(state.archives)){
+            if (seeking > Nat.sub(thisItem.1.start + thisItem.1.length, 1) or thisArgs.start + thisArgs.length <= thisItem.1.start) {
+                continue archive;
+            };
 
-          // Calculate the start and end indices of the intersection between the requested range and the current archive.
-          let overlapStart = Nat.max(seeking, thisItem.1.start);
-          let overlapEnd = Nat.min(args.start + args.length - 1, thisItem.1.start + thisItem.1.length - 1);
-          let overlapLength = Nat.sub(overlapEnd, overlapStart) + 1;
+            // Calculate the start and end indices of the intersection between the requested range and the current archive.
+            let overlapStart = Nat.max(seeking, thisItem.1.start);
+            let overlapEnd = Nat.min(thisArgs.start + thisArgs.length - 1, thisItem.1.start + thisItem.1.length - 1);
+            let overlapLength = Nat.sub(overlapEnd, overlapStart) + 1;
 
-          // Create an archive request for the overlapping range.
-          Vec.add(archives, {
-              args = {
+            // Create an archive request for the overlapping range.
+            switch(Map.get(archives, Map.phash, thisItem.0)){
+              case(null){
+                let newVec = Vec.new<TransactionRange>();
+                Vec.add(newVec, {
+                    start = overlapStart;
+                    length = overlapLength;
+                  });
+                let fn  : MigrationTypes.Current.GetTransactionsFn = (actor(Principal.toText(thisItem.0)) : MigrationTypes.Current.ICRC3Interface).icrc3_get_blocks;
+                ignore Map.add<Principal, (Vec.Vector<TransactionRange>, MigrationTypes.Current.GetTransactionsFn)>(archives, Map.phash, thisItem.0, (newVec, fn));
+              };
+              case(?existing){
+                Vec.add(existing.0, {
                   start = overlapStart;
                   length = overlapLength;
+                });
               };
-              callback = (actor(Principal.toText(thisItem.0)) : MigrationTypes.Current.ICRC3Interface).icrc3_get_blocks;
-          });
+            };
 
-          // If the overlap ends exactly where the requested range ends, break out of the loop.
-          if (overlapEnd == Nat.sub(args.start + args.length, 1)) {
-              break archive;
+            // If the overlap ends exactly where the requested range ends, break out of the loop.
+            if (overlapEnd == Nat.sub(thisArgs.start + thisArgs.length, 1)) {
+                break archive;
+            };
+
+            // Update seeking to the next desired transaction.
+            seeking := overlapEnd + 1;
           };
-
-          // Update seeking to the next desired transaction.
-          seeking := overlapEnd + 1;
         };
       };
 
 
-      debug if(debug_channel.get_transactions) D.print("returning transactions result" # debug_show(ledger_length, Vec.size(vec), Vec.size(archives)));
+      debug if(debug_channel.get_transactions) D.print("returning transactions result" # debug_show(ledger_length, Vec.size(vec), Map.size(archives)));
       //build the result
       return {
         log_length = ledger_length;
         certificate = CertifiedData.getCertificate(); //will be null in update calls
         blocks = Vec.toArray(vec);
-        archived_blocks = Vec.toArray(archives);
+        archived_blocks = Iter.toArray<MigrationTypes.Current.ArchivedTransactionResponse>(Iter.map< (Vec.Vector<TransactionRange>, MigrationTypes.Current.GetTransactionsFn), MigrationTypes.Current.ArchivedTransactionResponse>(Map.vals(archives), func(x :(Vec.Vector<TransactionRange>, MigrationTypes.Current.GetTransactionsFn)):  MigrationTypes.Current.ArchivedTransactionResponse{
+          {
+            args = Vec.toArray(x.0);
+            callback = x.1;
+          }
+
+        }));
       }
     };
   };

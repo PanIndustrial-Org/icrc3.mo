@@ -86,7 +86,7 @@ shared(init_msg) actor class() = this {
     let index2 = await ledger.add_record(transaction2);
 
     // Retrieving the blocks from the ledger
-    let retrievalResult = await ledger.icrc3_get_blocks({start = 0; length = 2});
+    let retrievalResult = await ledger.icrc3_get_blocks([{start = 0; length = 2}]);
 
     // Verify integrity of transaction hashes
     let trxresult1 = ICRC3.helper.get_item_from_map("tx", retrievalResult.blocks[0].transaction) else D.trap("not a map");
@@ -136,7 +136,7 @@ shared(init_msg) actor class() = this {
     let index = await ledger.add_record(transaction);
 
     // Verify that the last block hash matches the hash in the tip certificate
-    let retrievalResult = await ledger.icrc3_get_blocks({start = 0; length = 1});
+    let retrievalResult = await ledger.icrc3_get_blocks([{start = 0; length = 1}]);
 
     let lastBlock = retrievalResult.blocks[0].transaction;
 
@@ -165,7 +165,7 @@ shared(init_msg) actor class() = this {
       let ledger = await Example.Example(baseState);
 
       // Retrieve the blocks from the empty ledger
-      let retrievalResult = await ledger.icrc3_get_blocks({start = 0; length = 10});
+      let retrievalResult = await ledger.icrc3_get_blocks([{start = 0; length = 10}]);
 
       let suite = S.suite(
           "Latest block certification",
@@ -193,7 +193,7 @@ shared(init_msg) actor class() = this {
       let index1 = await ledger.add_record(transaction1);
 
       // Retrieve the blocks from the non-empty ledger
-      let retrievalResult = await ledger.icrc3_get_blocks({start = 0; length = 10});
+      let retrievalResult = await ledger.icrc3_get_blocks([{start = 0; length = 10}]);
 
       let suite = S.suite(
           "testGetBlocksEndpointWithNonEmptyLedger",
@@ -220,7 +220,7 @@ shared(init_msg) actor class() = this {
       // Add more transactions...
 
       // Retrieve the blocks with pagination
-      let retrievalResult = await ledger.icrc3_get_blocks({start = 0; length = 1});
+      let retrievalResult = await ledger.icrc3_get_blocks([{start = 0; length = 1}]);
 
       let suite = S.suite(
           "testGetBlocksEndpointWithPaging",
@@ -255,7 +255,7 @@ shared(init_msg) actor class() = this {
         let fake4 = await Fake.Fake();
 
       // Retrieve the archived blocks callback
-      let retrievalResult = await ledger.icrc3_get_blocks({start = 5; length = 5});
+      let retrievalResult = await ledger.icrc3_get_blocks([{start = 5; length = 5}]);
 
       D.print("found result for local " # debug_show(retrievalResult.blocks));
 
@@ -276,6 +276,14 @@ shared(init_msg) actor class() = this {
       let results2 = await archivedBlocksCallback2.callback(archivedBlocksCallback2.args);
 
       D.print("found result in archive " # debug_show(results2.blocks));
+
+      // Retrieve the archived blocks callback
+      let retrievalResult2 = await ledger.icrc3_get_blocks([{start = 0; length = 2},{start = 4; length = 2}]);
+
+      D.print("found result for retrievalResult2 " # debug_show(retrievalResult2.blocks));
+
+      D.print("found result for  retrievalResult2 archive " # debug_show(retrievalResult2.archived_blocks.size()));
+      D.print("found result for retrievalResult2 archive 1" # debug_show(retrievalResult2.archived_blocks[1].args));
       
       // Perform assertions on the retrieved archived blocks callback
       let suite = S.suite(
@@ -353,7 +361,7 @@ shared(init_msg) actor class() = this {
     let index3 = await ledger.add_record(transaction2);
 
     // Retrieve the blocks from the ledger
-    let retrievalResult = await ledger.icrc3_get_blocks({start = 0; length = 3});
+    let retrievalResult = await ledger.icrc3_get_blocks([{start = 0; length = 3}]);
     D.print("retrievalResult"  # debug_show(retrievalResult.blocks));
     // Verify the integrity of the block log
 
@@ -418,7 +426,7 @@ shared(init_msg) actor class() = this {
       let index2 = await ledger.add_record(transaction2);
 
       // Retrieve the blocks from the ledger
-      let retrievalResult = await ledger.icrc3_get_blocks({start = 0; length = 2});
+      let retrievalResult = await ledger.icrc3_get_blocks([{start = 0; length = 2}]);
 
       D.print("have retrieval" # debug_show(retrievalResult.blocks, retrievalResult.log_length));
 
@@ -467,7 +475,7 @@ shared(init_msg) actor class() = this {
         //check it is empty
 
         let emptyResponse : ICRC3Types.Current.GetTransactionsResult = try{
-          await childv1.icrc3_get_blocks({start=0; length=1000});
+          await childv1.icrc3_get_blocks([{start=0; length=1000}]);
         } catch(e){
           D.print("had error " # Error.message(e));
           { 
@@ -512,7 +520,7 @@ shared(init_msg) actor class() = this {
 
         D.print("about to try full response ");
         let fullResponse = try{
-          await childv1.icrc3_get_blocks({start=0; length=1000});
+          await childv1.icrc3_get_blocks([{start=0; length=1000}]);
         } catch(e){
           D.print("had error with full " # Error.message(e));
           { 
@@ -526,14 +534,14 @@ shared(init_msg) actor class() = this {
         D.print("length was " # debug_show(fullResponse.log_length));
         D.print("transactions was " # debug_show(fullResponse.blocks));
         D.print("archive was " # debug_show(Array.map<ICRC3Types.Current.ArchivedTransactionResponse, (Principal, ICRC3Types.Current.TransactionRange)>(fullResponse.archived_blocks, func(x: ICRC3Types.Current.ArchivedTransactionResponse) : (Principal, ICRC3Types.Current.TransactionRange){
-          (Principal.fromActor(this), x.args)
+          (Principal.fromActor(this), x.args[0])
         })));
 
 
 
         D.print("reading smallLocalResponse ");
         let smallLocalResponse = try{
-          await childv1.icrc3_get_blocks({start=15; length=1});
+          await childv1.icrc3_get_blocks([{start=15; length=1}]);
         } catch(e){
           D.print("had error with full " # Error.message(e));
           { 
@@ -547,12 +555,12 @@ shared(init_msg) actor class() = this {
         D.print("length was " # debug_show(smallLocalResponse.log_length));
         D.print("transactions was " # debug_show(smallLocalResponse.blocks));
         D.print("archive was " # debug_show(Array.map<ICRC3Types.Current.ArchivedTransactionResponse, (Principal, ICRC3Types.Current.TransactionRange)>(smallLocalResponse.archived_blocks, func(x: ICRC3Types.Current.ArchivedTransactionResponse) : (Principal, ICRC3Types.Current.TransactionRange){
-          (Principal.fromActor(this), x.args) //note...not actual item
+          (Principal.fromActor(this), x.args[0]) //note...not actual item
         })));
 
         //D.print("reading preResponse3 " # debug_show(dataResponse));
         let smallArchiveResponse = try{
-          await childv1.icrc3_get_blocks({start=1; length=3});
+          await childv1.icrc3_get_blocks([{start=1; length=3}]);
         } catch(e){
           D.print("had error with full " # Error.message(e));
           { 
@@ -566,12 +574,12 @@ shared(init_msg) actor class() = this {
         D.print("length was " # debug_show(smallArchiveResponse.log_length));
         D.print("transactions was " # debug_show(smallArchiveResponse.blocks));
         D.print("archive was " # debug_show(Array.map<ICRC3Types.Current.ArchivedTransactionResponse, (Principal, ICRC3Types.Current.TransactionRange)>(smallArchiveResponse.archived_blocks, func(x: ICRC3Types.Current.ArchivedTransactionResponse) : (Principal, ICRC3Types.Current.TransactionRange){
-          (Principal.fromActor(this), x.args)
+          (Principal.fromActor(this), x.args[0])
         })));
 
         //D.print("reading preResponse3 " # debug_show(dataResponse));
         let largeArchiveResponse = try{
-          await childv1.icrc3_get_blocks({start=1; length=8});
+          await childv1.icrc3_get_blocks([{start=1; length=8}]);
         } catch(e){
           D.print("had error with full " # Error.message(e));
           { 
@@ -585,8 +593,8 @@ shared(init_msg) actor class() = this {
         D.print("length was " # debug_show(largeArchiveResponse.log_length));
         D.print("transactions was " # debug_show(largeArchiveResponse.blocks));
         D.print("archive was " # debug_show(Array.map<ICRC3Types.Current.ArchivedTransactionResponse, (Principal, ICRC3Types.Current.TransactionRange)>(largeArchiveResponse.archived_blocks, func(x: ICRC3Types.Current.ArchivedTransactionResponse) : (Principal, ICRC3Types.Current.TransactionRange){
-          (Principal.fromActor(this), x.args)
-        })));
+          (Principal.fromActor(this), x.args[0])
+        }))); 
 
 
         D.print("made it to tests ");
@@ -628,12 +636,12 @@ shared(init_msg) actor class() = this {
                 ),
                 S.test(
                     "fail if length is wrong for small archive",
-                    smallArchiveResponse.archived_blocks[0].args.length,
+                    smallArchiveResponse.archived_blocks[0].args[0].length,
                     M.equals<Nat>(T.nat(3)), //max pages is 64 and this is the cutoff
                 ),
                 S.test(
                     "fail if start is wrong for small archive",
-                    smallArchiveResponse.archived_blocks[0].args.start,
+                    smallArchiveResponse.archived_blocks[0].args[0].start,
                     M.equals<Nat>(T.nat(1)), //max pages is 64 and this is the cutoff
                 ),
 
@@ -649,22 +657,22 @@ shared(init_msg) actor class() = this {
                 ),
                 S.test(
                     "fail if length is wrong for large archive",
-                    largeArchiveResponse.archived_blocks[0].args.length,
+                    largeArchiveResponse.archived_blocks[0].args[0].length,
                     M.equals<Nat>(T.nat(5)), //max pages is 64 and this is the cutoff
                 ),
                 S.test(
                     "fail if start is wrong for large archive",
-                    largeArchiveResponse.archived_blocks[0].args.start,
+                    largeArchiveResponse.archived_blocks[0].args[0].start,
                     M.equals<Nat>(T.nat(1)), //max pages is 64 and this is the cutoff
                 ),
                 S.test(
                     "fail if length is wrong for large archive",
-                    largeArchiveResponse.archived_blocks[1].args.length,
+                    largeArchiveResponse.archived_blocks[1].args[0].length,
                     M.equals<Nat>(T.nat(3)), //max pages is 64 and this is the cutoff
                 ),
                 S.test(
                     "fail if start is wrong for large archive",
-                    largeArchiveResponse.archived_blocks[1].args.start,
+                    largeArchiveResponse.archived_blocks[1].args[0].start,
                     M.equals<Nat>(T.nat(6)), //max pages is 64 and this is the cutoff
                 )
 
