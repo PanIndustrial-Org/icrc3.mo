@@ -31,6 +31,7 @@ import SW "mo:stable-write-only";
 import HelperLib "helper";
 import CertTree "mo:cert/CertTree";
 import MTree "mo:cert/MerkleTree";
+import Service "service";
 
 module {
 
@@ -58,10 +59,13 @@ module {
   public type Stats = MigrationTypes.Current.Stats;
   public type TransactionRange = MigrationTypes.Current.TransactionRange;
   public type GetTransactionsResult = MigrationTypes.Current.GetTransactionsResult;
-  public type DataCertificate = MigrationTypes.Current.DataCertificate;
+  public type DataCertificate = Service.DataCertificate;
   public type Tip = MigrationTypes.Current.Tip;
-  public type GetArchivesArgs = MigrationTypes.Current.GetArchivesArgs;
-  public type GetArchivesResult = MigrationTypes.Current.GetArchivesResult;
+  public type GetArchivesArgs = Service.GetArchivesArgs;
+  public type GetArchivesResult = Service.GetArchivesResult;
+  public type GetBlocksArgs = Service.GetBlocksArgs;
+  public type GetBlocksResult = Service.GetBlocksResult;
+  public type Block = Service.Block;
   public type GetArchivesResultItem = MigrationTypes.Current.GetArchivesResultItem;
 
   /// Represents the IC actor
@@ -652,7 +656,7 @@ module {
     ///
     /// Returns:
     /// - The result of getting transactions
-    public func get_transactions(args: [TransactionRange]) : MigrationTypes.Current.GetTransactionsResult{
+    public func get_blocks(args: GetBlocksArgs) : GetBlocksResult {
 
       debug if(debug_channel.get_transactions) D.print("get_transaction_states" # debug_show(stats()));
       let local_ledger_length = Vec.size(state.ledger);
@@ -665,7 +669,7 @@ module {
       debug if(debug_channel.get_transactions) D.print("have ledger length" # debug_show(ledger_length));
 
       //get the transactions on this canister
-      let vec = Vec.new<TransactionTypes>();
+      let transactions = Vec.new<Block>();
       for(thisArg in args.vals()){
         debug if(debug_channel.get_transactions) D.print("setting start " # debug_show(thisArg.start + thisArg.length, state.firstIndex));
         if(thisArg.start + thisArg.length > state.firstIndex){
@@ -698,9 +702,9 @@ module {
               if(thisItem >= Vec.size(state.ledger)){
                 break search;
               };
-              Vec.add(vec, {
+              Vec.add(transactions, {
                   id = state.firstIndex + thisItem;
-                  transaction = Vec.get(state.ledger, thisItem)
+                  block = Vec.get(state.ledger, thisItem)
               });
             };
           };
@@ -757,12 +761,12 @@ module {
       };
 
 
-      debug if(debug_channel.get_transactions) D.print("returning transactions result" # debug_show(ledger_length, Vec.size(vec), Map.size(archives)));
+      debug if(debug_channel.get_transactions) D.print("returning transactions result" # debug_show(ledger_length, Vec.size(transactions), Map.size(archives)));
       //build the result
       return {
         log_length = ledger_length;
         certificate = CertifiedData.getCertificate(); //will be null in update calls
-        blocks = Vec.toArray(vec);
+        blocks = Vec.toArray(transactions);
         archived_blocks = Iter.toArray<MigrationTypes.Current.ArchivedTransactionResponse>(Iter.map< (Vec.Vector<TransactionRange>, MigrationTypes.Current.GetTransactionsFn), MigrationTypes.Current.ArchivedTransactionResponse>(Map.vals(archives), func(x :(Vec.Vector<TransactionRange>, MigrationTypes.Current.GetTransactionsFn)):  MigrationTypes.Current.ArchivedTransactionResponse{
           {
             args = Vec.toArray(x.0);

@@ -137,13 +137,7 @@ module {
     // transaction log
     log_length : Nat;
     
-    // System certificate for the hash of the
-    // latest transaction in the chain.
-    // Only present if `icrc3_get_blocks`
-    // is called in a non-replicated query context.
-    certificate : ?Blob;
-
-    blocks : [{ id : Nat; transaction: Value }];
+    blocks : [{ id : Nat; block : Value }];
 
     archived_blocks : [ArchivedTransactionResponse];
   };

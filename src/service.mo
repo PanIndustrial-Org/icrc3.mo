@@ -28,20 +28,24 @@ module
 
   public type GetBlocksArgs =[{ start : Nat; length : Nat }];
 
+  public type Block = { id : Nat; block: Value };
+
+  public type ArchivedBlock = {
+        args : GetBlocksArgs;
+        callback : query (GetBlocksArgs) -> async (GetBlocksResult);
+    };
+
   public type GetBlocksResult = {
     // Total number of blocks in the
     // block log
     log_length : Nat;
 
-    blocks : [{ id : Nat; block: Value }];
+    blocks : [Block];
 
-    archived_blocks : [{
-        args : GetBlocksArgs;
-        callback : query (GetBlocksArgs) -> async (GetBlocksResult);
-    }];
+    archived_blocks : [ArchivedBlock];
 };
 
-type DataCertificate =  {
+public type DataCertificate =  {
   // See https://internetcomputer.org/docs/current/references/ic-interface-spec#certification
   certificate : Blob;
 

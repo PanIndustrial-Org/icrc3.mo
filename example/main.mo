@@ -105,8 +105,8 @@ shared(init_msg) actor class Example(_args: ?ICRC3.InitArgs) = this {
     };
   };
 
-  public query func icrc3_get_blocks(args: [ICRC3.TransactionRange]) : async ICRC3.GetTransactionsResult{
-    return icrc3().get_transactions(args);
+  public query func icrc3_get_blocks(args: ICRC3.GetBlocksArgs) : async ICRC3.GetBlocksResult{
+    return icrc3().get_blocks(args);
   };
 
   public query func icrc3_get_archives(args: ICRC3.GetArchivesArgs) : async ICRC3.GetArchivesResult{
