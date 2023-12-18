@@ -277,7 +277,7 @@ module {
     ///
     /// Returns:
     /// - The archive index
-    public func get_archives(request: GetArchivesArgs) : GetArchivesResult {
+    public func get_archives(request: Service.GetArchivesArgs) : Service.GetArchivesResult {
       let results = Vec.new<GetArchivesResultItem>();
        
       var bFound = switch(request.from){
@@ -333,7 +333,7 @@ module {
     ///
     /// Returns:
     /// - The data certificate (nullable)
-    public func get_tip_certificate() : ?DataCertificate{
+    public func get_tip_certificate() : ?Service.DataCertificate{
       debug if(debug_channel.certificate) D.print("in get tip certificate");
       switch(environment){
         case(null){};
