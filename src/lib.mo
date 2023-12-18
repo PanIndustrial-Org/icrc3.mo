@@ -59,13 +59,10 @@ module {
   public type Stats = MigrationTypes.Current.Stats;
   public type TransactionRange = MigrationTypes.Current.TransactionRange;
   public type GetTransactionsResult = MigrationTypes.Current.GetTransactionsResult;
-  public type DataCertificate = Service.DataCertificate;
+  public type DataCertificate = MigrationTypes.Current.DataCertificate;
   public type Tip = MigrationTypes.Current.Tip;
-  public type GetArchivesArgs = Service.GetArchivesArgs;
-  public type GetArchivesResult = Service.GetArchivesResult;
-  public type GetBlocksArgs = Service.GetBlocksArgs;
-  public type GetBlocksResult = Service.GetBlocksResult;
-  public type Block = Service.Block;
+  public type GetArchivesArgs = MigrationTypes.Current.GetArchivesArgs;
+  public type GetArchivesResult = MigrationTypes.Current.GetArchivesResult;
   public type GetArchivesResultItem = MigrationTypes.Current.GetArchivesResultItem;
 
   /// Represents the IC actor
@@ -101,6 +98,8 @@ module {
 
   /// Helper library for common functions
   public let helper = HelperLib;
+
+  public type Service = Service.Service;
 
   /// The ICRC3 class manages the transaction ledger, archives, and certificate store.
   ///
@@ -656,7 +655,7 @@ module {
     ///
     /// Returns:
     /// - The result of getting transactions
-    public func get_blocks(args: GetBlocksArgs) : GetBlocksResult {
+    public func get_blocks(args: Service.GetBlocksArgs) : Service.GetBlocksResult {
 
       debug if(debug_channel.get_transactions) D.print("get_transaction_states" # debug_show(stats()));
       let local_ledger_length = Vec.size(state.ledger);
@@ -669,7 +668,7 @@ module {
       debug if(debug_channel.get_transactions) D.print("have ledger length" # debug_show(ledger_length));
 
       //get the transactions on this canister
-      let transactions = Vec.new<Block>();
+      let transactions = Vec.new<Service.Block>();
       for(thisArg in args.vals()){
         debug if(debug_channel.get_transactions) D.print("setting start " # debug_show(thisArg.start + thisArg.length, state.firstIndex));
         if(thisArg.start + thisArg.length > state.firstIndex){
