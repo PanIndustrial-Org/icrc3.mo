@@ -89,12 +89,12 @@ shared(init_msg) actor class() = this {
     let retrievalResult = await ledger.icrc3_get_blocks([{start = 0; length = 2}]);
 
     // Verify integrity of transaction hashes
-    let trxresult1 = ICRC3.helper.get_item_from_map("tx", retrievalResult.blocks[0].transaction) else D.trap("not a map");
-    let trxresult2 = ICRC3.helper.get_item_from_map("tx", retrievalResult.blocks[1].transaction) else D.trap("not a map");
+    let trxresult1 = ICRC3.helper.get_item_from_map("tx", retrievalResult.blocks[0].block) else D.trap("not a map");
+    let trxresult2 = ICRC3.helper.get_item_from_map("tx", retrievalResult.blocks[1].block) else D.trap("not a map");
 
     //D.print()
 
-    let ?#Blob(derived) = ICRC3.helper.get_item_from_map("phash", retrievalResult.blocks[1].transaction);
+    let ?#Blob(derived) = ICRC3.helper.get_item_from_map("phash", retrievalResult.blocks[1].block);
 
     let suite = S.suite(
       "testIntegrityOfLedgerBlocks",
@@ -138,7 +138,7 @@ shared(init_msg) actor class() = this {
     // Verify that the last block hash matches the hash in the tip certificate
     let retrievalResult = await ledger.icrc3_get_blocks([{start = 0; length = 1}]);
 
-    let lastBlock = retrievalResult.blocks[0].transaction;
+    let lastBlock = retrievalResult.blocks[0].block;
 
     let tip_result = await ledger.get_tip();
 
@@ -365,16 +365,16 @@ shared(init_msg) actor class() = this {
     D.print("retrievalResult"  # debug_show(retrievalResult.blocks));
     // Verify the integrity of the block log
 
-    let ?#Blob(secondBlockHash) = ICRC3.helper.get_item_from_map("phash", retrievalResult.blocks[1].transaction);
+    let ?#Blob(secondBlockHash) = ICRC3.helper.get_item_from_map("phash", retrievalResult.blocks[1].block);
 
-    let ?#Blob(thirdBlockHash) = ICRC3.helper.get_item_from_map("phash", retrievalResult.blocks[2].transaction);
+    let ?#Blob(thirdBlockHash) = ICRC3.helper.get_item_from_map("phash", retrievalResult.blocks[2].block);
 
     
     let blockTxHash = Blob.fromArray(RepIndy.hash_val(#Map([("tx",transaction1)])));
 
-    let expectedHash2 = Blob.fromArray(RepIndy.hash_val(retrievalResult.blocks[0].transaction));
+    let expectedHash2 = Blob.fromArray(RepIndy.hash_val(retrievalResult.blocks[0].block));
     
-    let expectedHash3 = Blob.fromArray(RepIndy.hash_val(retrievalResult.blocks[1].transaction));
+    let expectedHash3 = Blob.fromArray(RepIndy.hash_val(retrievalResult.blocks[1].block));
 
     D.print("running hash");
 
@@ -434,9 +434,9 @@ shared(init_msg) actor class() = this {
 
       
 
-      let ?trxresult1 = ICRC3.helper.get_item_from_map("tx",retrievalResult.blocks[0].transaction) else D.trap("not a map");
+      let ?trxresult1 = ICRC3.helper.get_item_from_map("tx",retrievalResult.blocks[0].block) else D.trap("not a map");
 
-      let ?trxresult2 = ICRC3.helper.get_item_from_map("tx",retrievalResult.blocks[1].transaction)  else D.trap("not a map");
+      let ?trxresult2 = ICRC3.helper.get_item_from_map("tx",retrievalResult.blocks[1].block)  else D.trap("not a map");
 
       let suite = S.suite(
             "test upgrade",

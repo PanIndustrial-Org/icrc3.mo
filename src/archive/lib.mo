@@ -84,7 +84,7 @@ shared ({ caller = ledger_canister_id }) actor class Archive (_args : T.Current.
 
       D.print("request for archive blocks " # debug_show(req));
 
-      let vec = Vec.new<{id:Nat; transaction: Transaction}>();
+      let transactions = Vec.new<{id:Nat; block: Transaction}>();
       for(thisArg in req.vals()){
         var tracker = thisArg.start;
         for(thisItem in Iter.range(thisArg.start, thisArg.start + thisArg.length - 1)){
@@ -95,7 +95,7 @@ shared ({ caller = ledger_canister_id }) actor class Archive (_args : T.Current.
             };
             case(?val){
               D.print("found" # debug_show(val));
-              Vec.add(vec, {id = tracker; transaction = val});
+              Vec.add(transactions, {id = tracker; block = val});
             };
           };
           tracker += 1;
@@ -103,7 +103,7 @@ shared ({ caller = ledger_canister_id }) actor class Archive (_args : T.Current.
       };
 
       { 
-          blocks = Vec.toArray(vec);
+          blocks = Vec.toArray(transactions);
           archived_blocks = [];
           log_length =  0;
           certificate = null;
