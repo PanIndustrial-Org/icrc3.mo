@@ -32,7 +32,6 @@ import HelperLib "helper";
 import CertTree "mo:cert/CertTree";
 import MTree "mo:cert/MerkleTree";
 import Service "service";
-
 module {
 
   /// Debug channel configuration
@@ -98,9 +97,7 @@ module {
 
   /// Helper library for common functions
   public let helper = HelperLib;
-
   public type Service = Service.Service;
-
   /// The ICRC3 class manages the transaction ledger, archives, and certificate store.
   ///
   /// The ICRC3 class provides functions for adding a record to the ledger, getting
@@ -489,7 +486,7 @@ module {
 
         debug if(debug_channel.clean_up) D.print("Have an archive");
 
-        ignore Map.add<Principal, TransactionRange>(state.archives, Map.phash, Principal.fromActor(newArchive),newItem);
+        ignore Map.put<Principal, TransactionRange>(state.archives, Map.phash, Principal.fromActor(newArchive),newItem);
 
         ((Principal.fromActor(newArchive), newItem), state.constants.archiveProperties.maxRecordsInArchiveInstance);
       } else{
@@ -523,7 +520,7 @@ module {
             start = state.firstIndex;
             length = 0;
           };
-          ignore Map.add(state.archives, Map.phash, Principal.fromActor(newArchive), newItem);
+          ignore Map.put(state.archives, Map.phash, Principal.fromActor(newArchive), newItem);
           ((Principal.fromActor(newArchive), newItem), state.constants.archiveProperties.maxRecordsInArchiveInstance);
         } else {
           debug if(debug_channel.clean_up) D.print("just giving stats");
@@ -738,7 +735,7 @@ module {
                     length = overlapLength;
                   });
                 let fn  : MigrationTypes.Current.GetTransactionsFn = (actor(Principal.toText(thisItem.0)) : MigrationTypes.Current.ICRC3Interface).icrc3_get_blocks;
-                ignore Map.add<Principal, (Vec.Vector<TransactionRange>, MigrationTypes.Current.GetTransactionsFn)>(archives, Map.phash, thisItem.0, (newVec, fn));
+                ignore Map.put<Principal, (Vec.Vector<TransactionRange>, MigrationTypes.Current.GetTransactionsFn)>(archives, Map.phash, thisItem.0, (newVec, fn));
               };
               case(?existing){
                 Vec.add(existing.0, {
