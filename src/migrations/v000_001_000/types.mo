@@ -88,6 +88,8 @@ module {
       length : Nat;
   };
 
+  public type GetBlocksArgs = [TransactionRange];
+
   public type ArchivedTransactionResponse = {
         args : [TransactionRange];
         callback : GetTransactionsFn;
@@ -141,6 +143,8 @@ module {
 
     archived_blocks : [ArchivedTransactionResponse];
   };
+
+  public type GetBlocksResult = GetTransactionsResult;
 
 
   public type GetTransactionsFn = shared query ([TransactionRange]) -> async GetTransactionsResult;

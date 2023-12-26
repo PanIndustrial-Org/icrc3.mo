@@ -64,6 +64,9 @@ module {
   public type GetArchivesResult = MigrationTypes.Current.GetArchivesResult;
   public type GetArchivesResultItem = MigrationTypes.Current.GetArchivesResultItem;
 
+  public type GetBlocksArgs = MigrationTypes.Current.GetBlocksArgs;
+  public type GetBlocksResult = MigrationTypes.Current.GetBlocksResult;
+
   /// Represents the IC actor
   public type IC = MigrationTypes.Current.IC;
 

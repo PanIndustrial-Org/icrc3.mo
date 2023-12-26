@@ -278,12 +278,15 @@ shared(init_msg) actor class() = this {
       D.print("found result in archive " # debug_show(results2.blocks));
 
       // Retrieve the archived blocks callback
-      let retrievalResult2 = await ledger.icrc3_get_blocks([{start = 0; length = 2},{start = 4; length = 2}]);
+      let retrievalResult2 = await ledger.icrc3_get_blocks([{start = 0; length = 2}, {start = 4; length = 4}, {start = 8; length = 2}]);
 
       D.print("found result for retrievalResult2 " # debug_show(retrievalResult2.blocks));
 
       D.print("found result for  retrievalResult2 archive " # debug_show(retrievalResult2.archived_blocks.size()));
-      D.print("found result for retrievalResult2 archive 1" # debug_show(retrievalResult2.archived_blocks[1].args));
+
+      D.print("found result for retrievalResult2 archive 1" # debug_show(retrievalResult2.archived_blocks[0].args));
+
+      D.print("found result for retrievalResult2 archive 2" # debug_show(retrievalResult2.archived_blocks[1].args));
       
       // Perform assertions on the retrieved archived blocks callback
       let suite = S.suite(
