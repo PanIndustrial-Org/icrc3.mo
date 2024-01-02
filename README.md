@@ -29,9 +29,7 @@ stable var icrc3_migration_state = ICRC3.init(ICRC3.initialState() , #v0_1_0(#id
 
   private func updated_certification(cert: Blob, lastIndex: Nat) : Bool{
 
-    D.print("updating the certification " # debug_show(CertifiedData.getCertificate(), ct.treeHash()));
     ct.setCertifiedData();
-    D.print("did the certification " # debug_show(CertifiedData.getCertificate()));
     return true;
   };
 

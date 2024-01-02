@@ -151,6 +151,8 @@ module {
 
   public type ICRC3Interface = actor {
     icrc3_get_blocks : GetTransactionsFn;
+    icrc3_get_archives : query (GetArchivesArgs) -> async (GetArchivesResult) ;
+    icrc3_get_tip_certificate : query () -> async (?DataCertificate);
   };
 
   /// The Interface for the Archive canister

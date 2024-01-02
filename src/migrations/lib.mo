@@ -30,23 +30,20 @@ module {
     caller: Principal
   ): MigrationTypes.State {
 
-   // D.print("in migrate" # debug_show(prevState));
+   
     var state = prevState;
-     D.print("getting migration id" # debug_show(prevState));
     var migrationId = getMigrationId(prevState);
-    D.print(debug_show(migrationId));
+    
     let nextMigrationId = getMigrationId(nextState);
-    D.print(debug_show(nextMigrationId));
 
     while (migrationId != nextMigrationId) {
-      D.print("in upgrade while" # debug_show((nextMigrationId, migrationId)));
+      
       let migrate = if (nextMigrationId > migrationId) upgrades[migrationId] else downgrades[migrationId - 1];
-      D.print("selecting id");
+      
       migrationId := if (nextMigrationId > migrationId) migrationId + 1 else migrationId - 1;
-      D.print(debug_show(migrationId));
 
       state := migrate(state, args, caller);
-      D.print("upgrade should have run");
+      
     };
 
     return state;

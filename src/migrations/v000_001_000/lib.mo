@@ -12,7 +12,7 @@ module {
 
   public func upgrade(prevmigration_state: MigrationTypes.State, args: MigrationTypes.Args, caller: Principal): MigrationTypes.State {
 
-    D.print("in the upgrade " # debug_show(args));
+    
 
     let state : MigrationTypes.Current.State = {
       var lastIndex = 0;

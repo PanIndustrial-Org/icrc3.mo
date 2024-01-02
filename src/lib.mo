@@ -677,7 +677,7 @@ module {
             debug if(debug_channel.get_transactions) D.print("setting start " # debug_show(0));
             0;
           } else{
-            D.print("getting trx" # debug_show(state.lastIndex, state.firstIndex, thisArg));
+            debug if(debug_channel.get_transactions) D.print("getting trx" # debug_show(state.lastIndex, state.firstIndex, thisArg));
             if(thisArg.start >= (state.firstIndex)){
               Nat.sub(thisArg.start, (state.firstIndex));
             } else {

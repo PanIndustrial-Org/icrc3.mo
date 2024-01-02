@@ -8,7 +8,13 @@ import Iter "mo:base/Iter";
 
 shared ({ caller = ledger_canister_id }) actor class Archive (_args : T.Current.ArchiveInitArgs) = this {
 
-    D.print("new archive created with the following args" # debug_show(_args));
+    let debug_channel = {
+      announce = false;
+      append = false;
+      get = false;
+    };
+
+    debug if(debug_channel.announce) D.print("new archive created with the following args" # debug_show(_args));
 
     type Transaction = T.Current.Transaction;
     type MemoryBlock = {
@@ -33,16 +39,16 @@ shared ({ caller = ledger_canister_id }) actor class Archive (_args : T.Current.
 
     public shared ({ caller }) func append_transactions(txs : [Transaction]) : async AddTransactionsResponse {
 
-      D.print("adding transactions to archive" # debug_show(txs));
+      debug if(debug_channel.append) D.print("adding transactions to archive" # debug_show(txs));
 
-        if (caller != ledger_canister_id) {
-            return #err("Unauthorized Access: Only the ledger canister can access this archive canister");
-        };
+      if (caller != ledger_canister_id) {
+          return #err("Unauthorized Access: Only the ledger canister can access this archive canister");
+      };
 
       label addrecs for(thisItem in txs.vals()){
         let stats = sw.stats();
         if(stats.itemCount >= args.maxRecords){
-          D.print("braking add recs");
+          debug if(debug_channel.append)D.print("braking add recs");
           break addrecs;
         };
         ignore sw.write(to_candid(thisItem));
@@ -70,31 +76,31 @@ shared ({ caller = ledger_canister_id }) actor class Archive (_args : T.Current.
 
     private func _get_transaction(tx_index : T.Current.TxIndex) : ?Transaction {
         let stats = sw.stats();
-        D.print("getting transaction" # debug_show(tx_index, args.firstIndex, stats));
+        debug if(debug_channel.get) D.print("getting transaction" # debug_show(tx_index, args.firstIndex, stats));
        
         let target_index =  if(tx_index >= args.firstIndex) Nat.sub(tx_index, args.firstIndex) else D.trap("Not on this canister requested " # Nat.toText(tx_index) # "first index: " # Nat.toText(args.firstIndex));
-        D.print("target" # debug_show(target_index));
+        debug if(debug_channel.get) D.print("target" # debug_show(target_index));
         if(target_index >= stats.itemCount) D.trap("requested an item outside of this archive canister. first index: " # Nat.toText(args.firstIndex) # " last item" # Nat.toText(args.firstIndex + stats.itemCount - 1));
-        D.print("target" # debug_show(target_index));
+        debug if(debug_channel.get) D.print("target" # debug_show(target_index));
         let t = from_candid(sw.read(target_index)) : ?Transaction;
         return t;
     };
 
     public shared query func icrc3_get_blocks(req : [T.Current.TransactionRange]) : async T.Current.GetTransactionsResult {
 
-      D.print("request for archive blocks " # debug_show(req));
+      debug if(debug_channel.get) D.print("request for archive blocks " # debug_show(req));
 
       let transactions = Vec.new<{id:Nat; block: Transaction}>();
       for(thisArg in req.vals()){
         var tracker = thisArg.start;
         for(thisItem in Iter.range(thisArg.start, thisArg.start + thisArg.length - 1)){
-          D.print("getting" # debug_show(thisItem));
+          debug if(debug_channel.get) D.print("getting" # debug_show(thisItem));
           switch(_get_transaction(thisItem)){
             case(null){
               //should be unreachable...do we return an error?
             };
             case(?val){
-              D.print("found" # debug_show(val));
+              debug if(debug_channel.get) D.print("found" # debug_show(val));
               Vec.add(transactions, {id = tracker; block = val});
             };
           };
