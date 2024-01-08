@@ -49,7 +49,7 @@ module {
   public type CurrentState = MigrationTypes.Current.State;
 
   /// Arguments for initializing the migration
-  public type InitArgs = MigrationTypes.Current.InitArgs;
+  public type InitArgs = MigrationTypes.Args;
 
   /// Represents a transaction
   public type Transaction = MigrationTypes.Current.Transaction;
