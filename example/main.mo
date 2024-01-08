@@ -11,7 +11,7 @@ import D "mo:base/Debug";
 
 import ICRC3 "../src";
 
-shared(init_msg) actor class Example(_args: ?ICRC3.InitArgs) = this {
+shared(init_msg) actor class Example(_args: ICRC3.InitArgs) = this {
 
   stable let cert_store : CertTree.Store = CertTree.newStore();
   let ct = CertTree.Ops(cert_store);
