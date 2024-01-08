@@ -8,6 +8,7 @@ mops add icrc3-mo
 ## Usage
 ```motoko
 import ICRC3 "mo:icrc3.mo";
+```
 
 ## Initialization
 
