@@ -21,6 +21,7 @@ module {
       var bCleaning = false;
       var cleaningTimer = null;
       var latest_hash = null;
+      supportedBlocks =  Vec.new<v0_1_0.BlockType>();
       archives = Map.new<Principal, v0_1_0.TransactionRange>();
       ledgerCanister = caller;
       constants = {

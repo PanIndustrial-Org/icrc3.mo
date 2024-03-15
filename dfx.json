@@ -27,6 +27,6 @@
             "subnet_type": "application"
         }
     },
-    "dfx": "0.15.2",
+    "dfx": "0.18.0",
     "version": 1
 }

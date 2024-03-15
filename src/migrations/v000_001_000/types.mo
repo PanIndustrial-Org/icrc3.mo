@@ -36,6 +36,7 @@ module {
   public type State = {
     var ledger : Vec.Vector<Transaction>;
     archives: Map.Map<Principal, TransactionRange>;
+    supportedBlocks: Vec.Vector<BlockType>;
     ledgerCanister : Principal;
     var lastIndex : Nat;
     var firstIndex : Nat;
@@ -61,6 +62,7 @@ module {
     lastIndex: Nat;
     firstIndex: Nat;
     archives: [(Principal, TransactionRange)];
+    supportedBlocks: [BlockType];
     ledgerCanister : Principal;
     bCleaning : Bool;
    
@@ -149,10 +151,16 @@ module {
 
   public type GetTransactionsFn = shared query ([TransactionRange]) -> async GetTransactionsResult;
 
+  public type BlockType = {
+    block_type : Text;
+    url : Text;
+  };
+
   public type ICRC3Interface = actor {
     icrc3_get_blocks : GetTransactionsFn;
     icrc3_get_archives : query (GetArchivesArgs) -> async (GetArchivesResult) ;
     icrc3_get_tip_certificate : query () -> async (?DataCertificate);
+    icrc3_supported_block_types: query () -> async [BlockType];
   };
 
   /// The Interface for the Archive canister
@@ -209,6 +217,7 @@ module {
       maxRecordsToArchive : Nat;
       archiveCycles : Nat;
       archiveControllers : ??[Principal];
+      supportedBlocks : [BlockType];
     };
 
 };

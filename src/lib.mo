@@ -11,7 +11,6 @@ import MigrationTypes "./migrations/types";
 import Migration "./migrations";
 import Archive "/archive/";
 
-import Array "mo:base/Array";
 import Blob "mo:base/Blob";
 import D "mo:base/Debug";
 import CertifiedData "mo:base/CertifiedData";
@@ -20,14 +19,12 @@ import Iter "mo:base/Iter";
 import Principal "mo:base/Principal";
 import Timer "mo:base/Timer";
 import Nat8 "mo:base/Nat8";
-import Nat64 "mo:base/Nat64";
 import Nat "mo:base/Nat";
 import Text "mo:base/Text";
 import Vec "mo:vector";
 import Map "mo:map9/Map";
 import Set "mo:map9/Set";
 import RepIndy "mo:rep-indy-hash";
-import SW "mo:stable-write-only";
 import HelperLib "helper";
 import CertTree "mo:cert/CertTree";
 import MTree "mo:cert/MerkleTree";
@@ -53,6 +50,7 @@ module {
 
   /// Represents a transaction
   public type Transaction = MigrationTypes.Current.Transaction;
+  public type BlockType = MigrationTypes.Current.BlockType;
   public type Value = MigrationTypes.Current.Value;
   public type State = MigrationTypes.State;
   public type Stats = MigrationTypes.Current.Stats;
@@ -114,7 +112,7 @@ module {
         foundState;
       };
       case(?val) {
-        let #v0_1_0(#data(foundState)) = init(val,currentStateVersion, null, canister);
+        let #v0_1_0(#data(foundState)) = init(val, currentStateVersion, null, canister);
         foundState;
       };
     };
@@ -164,10 +162,10 @@ module {
     ///
     /// Throws:
     /// - An error if the `op` field is missing from the transaction
-    public func add_record(new_record: Transaction, top_level: ?Value) : Nat {
+    public func add_record<system>(new_record: Transaction, top_level: ?Value) : Nat {
 
       //validate that the trx has an op field according to ICRC3
-      let ?op = helper.get_item_from_map("op", new_record) else D.trap("missing the op field");
+      //let ?type_id = helper.get_item_from_map("op", top_level) else D.trap("missing the op field");
 
       debug if(debug_channel.add_record) D.print("adding a record" # debug_show(new_record));
 
@@ -228,7 +226,7 @@ module {
         switch(state.cleaningTimer){
           case(null){ //only need one active timer
             debug if(debug_channel.add_record) D.print("setting clean up timer");
-            state.cleaningTimer := ?Timer.setTimer(#seconds(0), check_clean_up);
+            state.cleaningTimer := ?Timer.setTimer<system>(#seconds(0), check_clean_up);
           };
           case(_){}
         };
@@ -246,8 +244,8 @@ module {
             case(?gcs, ?latest_hash){
               debug if(debug_channel.add_record) D.print("have store" # debug_show(gcs()));
               let ct = CertTree.Ops(gcs());
-              let blockWitness = ct.put([Text.encodeUtf8("last_block_index")], encodeBigEndian(state.lastIndex));
-              let hashWitness = ct.put([Text.encodeUtf8("last_block_hash")], latest_hash);
+              ct.put([Text.encodeUtf8("last_block_index")], encodeBigEndian(state.lastIndex));
+              ct.put([Text.encodeUtf8("last_block_hash")], latest_hash);
               ct.setCertifiedData();
             };
             case(_){};
@@ -256,7 +254,6 @@ module {
           switch(env.updated_certification, state.latest_hash){
             
             case(?uc, ?latest_hash){
-              let hash = latest_hash;
               debug if(debug_channel.add_record) D.print("have cert update");
               ignore uc(latest_hash, state.lastIndex);
             };
@@ -424,7 +421,7 @@ module {
             };
           };
           ignore ic.update_settings(({canister_id = canisterId; settings = {
-                    controllers = val;
+                    controllers = final_list;
                     freezing_threshold = null;
                     memory_allocation = null;
                     compute_allocation = null;
@@ -436,11 +433,23 @@ module {
       return;
     };
 
+    /// Updates the controllers for the given canister
+    ///
+    /// This function updates the controllers for the given canister.
+    ///
+    /// Arguments:
+    /// - `canisterId`: The canister ID
+    public func update_supported_blocks(supported_blocks : [BlockType]) : async () {
+      Vec.clear(state.supportedBlocks);
+      Vec.addFromIter(state.supportedBlocks, supported_blocks.vals());
+      return;
+    };
+
 
     /// Runs the clean up process to move records to archive canisters
     ///
     /// This function runs the clean up process to move records to archive canisters.
-    public func check_clean_up() : async (){
+    public func check_clean_up<system>() : async (){
 
       //clear the timer
       state.cleaningTimer := null;
@@ -464,7 +473,7 @@ module {
         debug if(debug_channel.clean_up) D.print("Creating a canister");
 
         if(ExperimentalCycles.balance() > state.constants.archiveProperties.archiveCycles * 2){
-          ExperimentalCycles.add(state.constants.archiveProperties.archiveCycles);
+          ExperimentalCycles.add<system>(state.constants.archiveProperties.archiveCycles);
         } else{
           //warning ledger will eventually overload
           debug if(debug_channel.clean_up) D.print("Not enough cycles" # debug_show(ExperimentalCycles.balance() ));
@@ -504,7 +513,7 @@ module {
           //this one is full, create a new archive
           debug if(debug_channel.clean_up) D.print("Need a new canister");
           if(ExperimentalCycles.balance() > state.constants.archiveProperties.archiveCycles * 2){
-            ExperimentalCycles.add(state.constants.archiveProperties.archiveCycles);
+            ExperimentalCycles.add<system>(state.constants.archiveProperties.archiveCycles);
           } else{
             //warning ledger will eventually overload
             state.bCleaning :=false;
@@ -575,7 +584,7 @@ module {
         let stats = switch(result){
           case(#ok(stats)) stats;
           case(#Full(stats)) stats;
-          case(#err(e)){
+          case(#err(_)){
             //do nothing...it failed;
             state.bCleaning :=false;
             return;
@@ -598,7 +607,7 @@ module {
           start = archive_detail.1.start;
           length = archive_detail.1.length + archivedAmount;
         })
-      } catch (e){
+      } catch (_){
         //what do we do when it fails?  keep them in memory?
         state.bCleaning :=false;
         return;
@@ -607,7 +616,7 @@ module {
       state.bCleaning :=false;
 
       if(bRecallAtEnd){
-        state.cleaningTimer := ?Timer.setTimer(#seconds(0), check_clean_up);
+        state.cleaningTimer := ?Timer.setTimer<system>(#seconds(0), check_clean_up);
       };
 
       debug if(debug_channel.clean_up) D.print("Checking clean up" # debug_show(stats()));
@@ -632,6 +641,7 @@ module {
         firstIndex = state.firstIndex;
         archives = Iter.toArray(Map.entries<Principal, TransactionRange>(state.archives));
         ledgerCanister = state.ledgerCanister;
+        supportedBlocks = Iter.toArray<BlockType>(Vec.vals(state.supportedBlocks));
         bCleaning = state.bCleaning;
         constants = {
           archiveProperties = {
@@ -644,6 +654,13 @@ module {
           };
         };
       };
+    };
+
+    ///Returns an array of supported block types.
+    ///
+    /// @returns {Array<BlockType>} The array of supported block types.
+    public func supported_block_types() : [BlockType] {
+      return Vec.toArray(state.supportedBlocks);
     };
 
     /// Returns a set of transactions and pointers to archives if necessary

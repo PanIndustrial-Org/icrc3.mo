@@ -70,7 +70,6 @@ shared ({ caller = ledger_canister_id }) actor class Archive (_args : T.Current.
     };
 
     public shared query func get_transaction(tx_index : T.Current.TxIndex) : async ?Transaction {
-        
         return _get_transaction(tx_index);
     };
 
@@ -127,7 +126,7 @@ shared ({ caller = ledger_canister_id }) actor class Archive (_args : T.Current.
     /// Deposit cycles into this archive canister.
     public shared func deposit_cycles() : async () {
         let amount = ExperimentalCycles.available();
-        let accepted = ExperimentalCycles.accept(amount);
+        let accepted = ExperimentalCycles.accept<system>(amount);
         assert (accepted == amount);
     };
 

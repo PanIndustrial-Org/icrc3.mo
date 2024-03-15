@@ -31,6 +31,12 @@ shared(init_msg) actor class() = this {
     maxRecordsToArchive = 10_000;
     archiveCycles = 2_000_000_000_000; //two trillion
     archiveControllers = null;
+    supportedBlocks : [ICRC3Types.Current.BlockType] = [
+      {
+        block_type = "test";
+        url = "url";
+      }
+    ]
   };
 
   public shared func test() : async {
