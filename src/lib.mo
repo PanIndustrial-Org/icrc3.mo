@@ -439,7 +439,7 @@ module {
     ///
     /// Arguments:
     /// - `canisterId`: The canister ID
-    public func update_supported_blocks(supported_blocks : [BlockType]) : async () {
+    public func update_supported_blocks(supported_blocks : [BlockType]) : () {
       Vec.clear(state.supportedBlocks);
       Vec.addFromIter(state.supportedBlocks, supported_blocks.vals());
       return;

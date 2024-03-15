@@ -21,6 +21,8 @@ shared(init_msg) actor class Example(_args: ICRC3.InitArgs) = this {
 
   D.print("loading the state");
 
+  
+
   let #v0_1_0(#data(icrc3_state_current)) = icrc3_migration_state;
 
   D.print("loaded the state");
@@ -92,13 +94,19 @@ shared(init_msg) actor class Example(_args: ICRC3.InitArgs) = this {
     return true;
   };
 
-  
-
   func icrc3() : ICRC3.ICRC3 {
     switch(_icrc3){
       case(null){
         let initclass : ICRC3.ICRC3 = ICRC3.ICRC3(?icrc3_migration_state, Principal.fromActor(this), get_icrc3_environment());
         _icrc3 := ?initclass;
+
+        if(initclass.stats().supportedBlocks.size() == 0){
+          initclass.update_supported_blocks([
+            {block_type = "uupdate_user"; url="https://git.com/user"},
+            {block_type ="uupdate_role"; url="https://git.com/user"},
+            {block_type ="uupdate_use_role"; url="https://git.com/user"}
+          ])
+        };
         initclass;
       };
       case(?val) val;
@@ -113,6 +121,10 @@ shared(init_msg) actor class Example(_args: ICRC3.InitArgs) = this {
     return icrc3().get_archives(args);
   };
 
+  public query func icrc3_supported_block_types() : async [ICRC3.BlockType]{
+    return icrc3().supported_block_types();
+  };
+
   public query func icrc3_get_tip_certificate() : async ?ICRC3.DataCertificate {
     return icrc3().get_tip_certificate();
   };
@@ -124,21 +136,19 @@ shared(init_msg) actor class Example(_args: ICRC3.InitArgs) = this {
   public shared(msg) func addUser(user: (Principal, Text)) : async Nat {
 
     return icrc3().add_record(#Map([
-      ("op", #Text("icrc_u_update_user")),
       ("principal", #Blob(Principal.toBlob(user.0))),
       ("username", #Text(user.1)),
       ("timestamp", #Int(get_time())),
       ("caller", #Blob(Principal.toBlob(msg.caller)))
-    ]), null);
+    ]), ?#Map([("type", #Text("uupdate_user"))]));
   };
 
   public shared(msg) func addRole(role: Text) : async Nat {
     return icrc3().add_record(#Map([
-      ("op", #Text("icrc_u_update_role")),
       ("role", #Text(role)),
       ("timestamp", #Int(get_time())),
       ("caller", #Blob(Principal.toBlob(msg.caller)))
-    ]), null);
+    ]), ?#Map([("type", #Text("uupdate_role"))]));
   };
 
   public shared(msg) func add_record(x: ICRC3.Transaction): async Nat{
@@ -147,7 +157,6 @@ shared(init_msg) actor class Example(_args: ICRC3.InitArgs) = this {
 
   public shared(msg) func addUserToRole(x: {role: Text; user: Principal; flag: Bool}) : async Nat {
     return icrc3().add_record(#Map([
-      ("op", #Text("icrc_u_update_use_role")),
       ("principal", #Blob(Principal.toBlob(x.user))),
       ("role", #Text(x.role)),
       ("flag", #Blob(
@@ -159,7 +168,7 @@ shared(init_msg) actor class Example(_args: ICRC3.InitArgs) = this {
       )),
       ("timestamp", #Int(get_time())),
       ("caller", #Blob(Principal.toBlob(msg.caller)))
-    ]), null);
+    ]),  ?#Map([("type", #Text("uupdate_use_role"))]));
   };
 
 };

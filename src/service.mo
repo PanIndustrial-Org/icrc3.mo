@@ -43,20 +43,26 @@ module
     blocks : [Block];
 
     archived_blocks : [ArchivedBlock];
-};
+  };
 
-public type DataCertificate =  {
-  // See https://internetcomputer.org/docs/current/references/ic-interface-spec#certification
-  certificate : Blob;
+  public type DataCertificate =  {
+    // See https://internetcomputer.org/docs/current/references/ic-interface-spec#certification
+    certificate : Blob;
 
-  // CBOR encoded hash_tree
-  hash_tree : Blob;
-};
+    // CBOR encoded hash_tree
+    hash_tree : Blob;
+  };
+
+  public type BlockType = {
+    block_type : Text;
+    url : Text;
+  };
 
 
   public type Service = actor {
     icrc3_get_archives : query (GetArchivesArgs) -> async (GetArchivesResult) ;
     icrc3_get_tip_certificate : query () -> async (?DataCertificate);
     icrc3_get_blocks : query (GetBlocksArgs) -> async (GetBlocksResult);
+     icrc3_supported_block_types: query () -> async [BlockType];
   };
 }
