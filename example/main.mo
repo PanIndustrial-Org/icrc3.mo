@@ -135,7 +135,7 @@ shared(init_msg) actor class Example(_args: ICRC3.InitArgs) = this {
 
   public shared(msg) func addUser(user: (Principal, Text)) : async Nat {
 
-    return icrc3().add_record(#Map([
+    return icrc3().add_record<system>(#Map([
       ("principal", #Blob(Principal.toBlob(user.0))),
       ("username", #Text(user.1)),
       ("timestamp", #Int(get_time())),
@@ -144,7 +144,7 @@ shared(init_msg) actor class Example(_args: ICRC3.InitArgs) = this {
   };
 
   public shared(msg) func addRole(role: Text) : async Nat {
-    return icrc3().add_record(#Map([
+    return icrc3().add_record<system>(#Map([
       ("role", #Text(role)),
       ("timestamp", #Int(get_time())),
       ("caller", #Blob(Principal.toBlob(msg.caller)))
@@ -152,11 +152,11 @@ shared(init_msg) actor class Example(_args: ICRC3.InitArgs) = this {
   };
 
   public shared(msg) func add_record(x: ICRC3.Transaction): async Nat{
-    return icrc3().add_record(x, null);
+    return icrc3().add_record<system>(x, null);
   };
 
   public shared(msg) func addUserToRole(x: {role: Text; user: Principal; flag: Bool}) : async Nat {
-    return icrc3().add_record(#Map([
+    return icrc3().add_record<system>(#Map([
       ("principal", #Blob(Principal.toBlob(x.user))),
       ("role", #Text(x.role)),
       ("flag", #Blob(

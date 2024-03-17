@@ -127,7 +127,7 @@ shared(init_msg) actor class() = this {
   };
 
   public func testTipCertificationMatchesLastBlock() : async { #success; #fail : Text } {
-    ExperimentalCycles.add(10_000_000_000_000);
+    ExperimentalCycles.add<system>(10_000_000_000_000);
     let ledger = await Example.Example(baseState);
 
     // Adding a block to the ledger
@@ -167,7 +167,7 @@ shared(init_msg) actor class() = this {
   };
 
     public shared func testGetBlocksEndpointWithEmptyLedger() : async  { #success; #fail : Text }{
-      ExperimentalCycles.add(10_000_000_000_000);
+      ExperimentalCycles.add<system>(10_000_000_000_000);
       let ledger = await Example.Example(baseState);
 
       // Retrieve the blocks from the empty ledger
@@ -187,7 +187,7 @@ shared(init_msg) actor class() = this {
     };
 
     public shared func testGetBlocksEndpointWithNonEmptyLedger() : async  { #success; #fail : Text }{
-      ExperimentalCycles.add(10_000_000_000_000);
+      ExperimentalCycles.add<system>(10_000_000_000_000);
       let ledger = await Example.Example(baseState);
 
       // Populate the ledger with some example transactions
@@ -214,7 +214,7 @@ shared(init_msg) actor class() = this {
     };
 
     public shared func testGetBlocksEndpointWithPaging() : async  { #success; #fail : Text }{
-      ExperimentalCycles.add(10_000_000_000_000);
+      ExperimentalCycles.add<system>(10_000_000_000_000);
       let ledger = await Example.Example(baseState);
 
       // Populate the ledger with some example transactions
@@ -241,7 +241,7 @@ shared(init_msg) actor class() = this {
     };
 
     public shared func testArchivedBlocksCallbackReturnsCorrectData() : async  { #success; #fail : Text }{
-      ExperimentalCycles.add(10_000_000_000_000);
+      ExperimentalCycles.add<system>(10_000_000_000_000);
       let ledger = await Example.Example(baseState);
 
       // Populate the ledger with transactions exceeding the active records limit
@@ -412,7 +412,7 @@ shared(init_msg) actor class() = this {
 
     public func testRetrieveBlockLog() : async { #success; #fail : Text } {
 
-      ExperimentalCycles.add(10_000_000_000_000);
+      ExperimentalCycles.add<system>(10_000_000_000_000);
       let ledger = await Example.Example(baseState);
 
       // Populate the ledger with some example transactions
@@ -476,7 +476,7 @@ shared(init_msg) actor class() = this {
         //create a bucket canister
         D.print("testing Upgrade start");
 
-        ExperimentalCycles.add(10_000_000_000_000);
+        ExperimentalCycles.add<system>(10_000_000_000_000);
         let childv1 = await Example.Example(baseState);
 
         D.print("have canister " # debug_show(Principal.fromActor(childv1)));
