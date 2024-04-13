@@ -117,6 +117,8 @@ module {
       };
     };
 
+
+
     /// The migrate function
     public let migrate = Migration.migrate;
 
@@ -640,7 +642,7 @@ module {
         lastIndex = state.lastIndex;
         firstIndex = state.firstIndex;
         archives = Iter.toArray(Map.entries<Principal, TransactionRange>(state.archives));
-        ledgerCanister = state.ledgerCanister;
+        ledgerCanister = canister;
         supportedBlocks = Iter.toArray<BlockType>(Vec.vals(state.supportedBlocks));
         bCleaning = state.bCleaning;
         constants = {
@@ -654,6 +656,16 @@ module {
           };
         };
       };
+    };
+
+    /// Returns the statistics of the migration
+    ///
+    /// This function returns the statistics of the migration.
+    ///
+    /// Returns:
+    /// - The migration statistics
+    public func get_state() : CurrentState {
+      return state;
     };
 
     ///Returns an array of supported block types.

@@ -1,6 +1,6 @@
 [package]
 name = "icrc3-mo"
-version = "0.2.4"
+version = "0.2.5"
 description = "icrc3 for motoko"
 repository = "https://github.com/PanIndustrial-Org/icrc3.mo"
 keywords = [ "ledger", "transactions", "log" ]
