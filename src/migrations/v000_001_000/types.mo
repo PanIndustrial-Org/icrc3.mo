@@ -33,6 +33,17 @@ module {
 
   public type Transaction = Value;
 
+  public type UpdateSetting = {
+    #maxActiveRecords : Nat;
+    #settleToRecords : Nat;
+    #maxRecordsInArchiveInstance : Nat;
+    #maxRecordsToArchive : Nat;
+    #maxArchivePages : Nat;
+    #archiveIndexType : SW.IndexType;
+    #archiveCycles : Nat;
+    #archiveControllers : ??[Principal];
+  };
+
   public type State = {
     var ledger : Vec.Vector<Transaction>;
     archives: Map.Map<Principal, TransactionRange>;

@@ -65,6 +65,8 @@ module {
   public type GetBlocksArgs = MigrationTypes.Current.GetBlocksArgs;
   public type GetBlocksResult = MigrationTypes.Current.GetBlocksResult;
 
+  public type UpdateSetting = MigrationTypes.Current.UpdateSetting;
+
   /// Represents the IC actor
   public type IC = MigrationTypes.Current.IC;
 
@@ -446,6 +448,50 @@ module {
       Vec.addFromIter(state.supportedBlocks, supported_blocks.vals());
       return;
     };
+
+ 
+    public func update_settings(settings : [UpdateSetting]) : [Bool]{
+
+    let results = Vec.new<Bool>();
+     for(setting in settings.vals()){
+          Vec.add(results, switch(setting) {
+            case(#maxActiveRecords(maxActiveRecords)){
+              state.constants.archiveProperties.maxActiveRecords := maxActiveRecords;
+              true;
+            };
+            case(#settleToRecords(settleToRecords)){
+              state.constants.archiveProperties.settleToRecords := settleToRecords;
+              true;
+            };
+            case(#maxRecordsInArchiveInstance(maxRecordsInArchiveInstance)){
+              state.constants.archiveProperties.maxRecordsInArchiveInstance := maxRecordsInArchiveInstance;
+              true;
+            };
+            case(#maxRecordsToArchive(maxRecordsToArchive)){
+              state.constants.archiveProperties.maxRecordsToArchive := maxRecordsToArchive;
+              true;
+            };
+            case(#maxArchivePages(maxArchivePages)){
+              state.constants.archiveProperties.maxArchivePages := maxArchivePages;
+              true;
+            };
+            case(#archiveIndexType(archiveIndexType)){
+              state.constants.archiveProperties.archiveIndexType := archiveIndexType;
+              true;
+            };
+            case(#archiveCycles(archiveCycles)){
+              state.constants.archiveProperties.archiveCycles := archiveCycles;
+              true;
+            };
+            case(#archiveControllers(archiveControllers)){
+              state.constants.archiveProperties.archiveControllers := archiveControllers;
+              true;
+            };
+          });
+        };
+      return Vec.toArray(results);
+    };
+
 
 
     /// Runs the clean up process to move records to archive canisters
