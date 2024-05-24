@@ -6,6 +6,7 @@ import Nat "mo:base/Nat";
 import Blob "mo:base/Blob";
 import CertifiedData "mo:base/CertifiedData";
 import CertTree "mo:cert/CertTree";
+import Service "../src/service";
 
 import D "mo:base/Debug";
 
@@ -20,8 +21,6 @@ shared(init_msg) actor class Example(_args: ICRC3.InitArgs) = this {
   stable var icrc3_migration_state = ICRC3.init(ICRC3.initialState() , #v0_1_0(#id), _args, init_msg.caller);
 
   D.print("loading the state");
-
-  
 
   let #v0_1_0(#data(icrc3_state_current)) = icrc3_migration_state;
 
@@ -61,6 +60,10 @@ shared(init_msg) actor class Example(_args: ICRC3.InitArgs) = this {
 
   func get_state() : ICRC3.CurrentState{
     return icrc3_state_current;
+  };
+
+  public query func get_transactions(args: Service.GetRosettaBlocksRequest) : async Service.GetRosettaBlocksResults {
+    return icrc3().get_rosetta_blocks(args);
   };
 
   public type Environment = {
@@ -153,6 +156,10 @@ shared(init_msg) actor class Example(_args: ICRC3.InitArgs) = this {
 
   public shared(msg) func add_record(x: ICRC3.Transaction): async Nat{
     return icrc3().add_record<system>(x, null);
+  };
+
+  public shared(msg) func add_record2(x: ICRC3.Transaction, y: ?ICRC3.Transaction): async Nat{
+    return icrc3().add_record<system>(x, y);
   };
 
   public shared(msg) func addUserToRole(x: {role: Text; user: Principal; flag: Bool}) : async Nat {
