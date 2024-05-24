@@ -1,10 +1,12 @@
 import SW "mo:stable-write-only";
 import T "../migrations/types";
 import ExperimentalCycles "mo:base/ExperimentalCycles";
+import Service "../service";
 import Vec "mo:vector";
 import D "mo:base/Debug";
 import Nat "mo:base/Nat";
 import Iter "mo:base/Iter";
+import Rosetta "../utils/Rosetta";
 
 shared ({ caller = ledger_canister_id }) actor class Archive (_args : T.Current.ArchiveInitArgs) = this {
 
@@ -85,7 +87,7 @@ shared ({ caller = ledger_canister_id }) actor class Archive (_args : T.Current.
         return t;
     };
 
-    public shared query func icrc3_get_blocks(req : [T.Current.TransactionRange]) : async T.Current.GetTransactionsResult {
+    private func icrc3_get_blocks_(req : [T.Current.TransactionRange]) : T.Current.GetTransactionsResult {
 
       debug if(debug_channel.get) D.print("request for archive blocks " # debug_show(req));
 
@@ -119,6 +121,10 @@ shared ({ caller = ledger_canister_id }) actor class Archive (_args : T.Current.
        */
     };
 
+    public shared query func icrc3_get_blocks(req : [T.Current.TransactionRange]) : async T.Current.GetTransactionsResult {
+      return icrc3_get_blocks_(req);
+    };
+
     public shared query func remaining_capacity() : async Nat {
         args.maxRecords - sw.stats().itemCount;
     };
@@ -134,5 +140,16 @@ shared ({ caller = ledger_canister_id }) actor class Archive (_args : T.Current.
     public query func cycles() : async Nat {
         ExperimentalCycles.balance();
     };
+
+    public query func get_transactions(request : { start : Nat; length : Nat }) : async Service.RosettaArchivedResult {
+        let items = icrc3_get_blocks_([request]);
+        let results = Vec.new<Service.RosettaTransaction>();
+        for(thisItem in items.blocks.vals()){
+          let ?item = Rosetta.blockToTransaction(thisItem.block) else D.trap("Illegal Block: " # debug_show(thisItem));
+          Vec.add(results,item);
+        };
+
+        return {transactions = Vec.toArray<Service.RosettaTransaction>(results)};
+      };
 
 };

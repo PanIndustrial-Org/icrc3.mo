@@ -22,13 +22,14 @@ import Nat8 "mo:base/Nat8";
 import Nat "mo:base/Nat";
 import Text "mo:base/Text";
 import Vec "mo:vector";
-import Map "mo:map9/Map";
+import MapLib "mo:map9/Map";
 import Set "mo:map9/Set";
 import RepIndy "mo:rep-indy-hash";
 import HelperLib "helper";
 import CertTree "mo:cert/CertTree";
 import MTree "mo:cert/MerkleTree";
 import Service "service";
+import Rosetta "./utils/Rosetta";
 module {
 
   /// Debug channel configuration
@@ -41,6 +42,8 @@ module {
     clean_up = false;
     get_transactions = false;
   };
+
+  public let Map = MapLib;
 
   /// Represents the current state of the migration
   public type CurrentState = MigrationTypes.Current.State;
@@ -850,5 +853,125 @@ module {
         }));
       }
     };
+
+
+    /// Returns a set of blocks and pointers to archives if necessary for legacy rosetta implementatoins
+    ///
+    /// This function returns a set of transactions and pointers to archives if necessary.
+    ///
+    /// Arguments:
+    /// - `args`: The transaction range
+    ///
+    /// Returns:
+    /// - The result of getting transactions
+    public func get_rosetta_blocks(thisArg: Service.GetRosettaBlocksArgs) : Service.GetRosettaBlocksResults {
+
+      debug if(debug_channel.get_transactions) D.print("get_transaction_states" # debug_show(stats()));
+      let local_ledger_length = Vec.size(state.ledger);
+      let ledger_length = if(state.lastIndex == 0 and local_ledger_length == 0) {
+        0;
+      } else {
+        state.lastIndex + 1;
+      };
+
+      debug if(debug_channel.get_transactions) D.print("have ledger length" # debug_show(ledger_length));
+
+      //get the transactions on this canister
+      let transactions = Vec.new<Service.RosettaTransaction>();
+      
+      debug if(debug_channel.get_transactions) D.print("setting start " # debug_show(thisArg.start + thisArg.length, state.firstIndex));
+      if(thisArg.start + thisArg.length > state.firstIndex){
+        debug if(debug_channel.get_transactions) D.print("setting start " # debug_show(thisArg.start + thisArg.length, state.firstIndex));
+        let start = if(thisArg.start <= state.firstIndex){
+          debug if(debug_channel.get_transactions) D.print("setting start " # debug_show(0));
+          0;
+        } else{
+          debug if(debug_channel.get_transactions) D.print("getting trx" # debug_show(state.lastIndex, state.firstIndex, thisArg));
+          if(thisArg.start >= (state.firstIndex)){
+            Nat.sub(thisArg.start, (state.firstIndex));
+          } else {
+            D.trap("last index must be larger than requested start plus one");
+          };
+        };
+
+        let end = if(Vec.size(state.ledger)==0){
+          0;
+        } else if(thisArg.start + thisArg.length >= state.lastIndex){
+          Nat.sub(Vec.size(state.ledger), 1);
+        } else {
+          Nat.sub((Nat.sub(state.lastIndex,state.firstIndex)), (Nat.sub(state.lastIndex, (thisArg.start + thisArg.length))))
+        };
+
+        debug if(debug_channel.get_transactions) D.print("getting local transactions" # debug_show(start,end));
+        //some of the items are on this server
+        if(Vec.size(state.ledger) > 0){
+          label search for(thisItem in Iter.range(start, end)){
+            debug if(debug_channel.get_transactions) D.print("testing" # debug_show(thisItem));
+            if(thisItem >= Vec.size(state.ledger)){
+              break search;
+            };
+            let ?item = Rosetta.blockToTransaction(Vec.get(state.ledger, thisItem)) else D.trap("Bad Block: " # debug_show(thisItem));
+            Vec.add(transactions, item);
+          };
+        };
+
+      
+      };
+
+      //get any relevant archives
+      let archives = Vec.new<(TransactionRange, Service.GetRosettaArchiveTransactionsFn)>();
+
+
+      if(thisArg.start < state.firstIndex){
+        
+        debug if(debug_channel.get_transactions) D.print("archive settings are " # debug_show(Iter.toArray(Map.entries(state.archives))));
+        var seeking = thisArg.start;
+        label archive for(thisItem in Map.entries(state.archives)){
+          if (seeking > Nat.sub(thisItem.1.start + thisItem.1.length, 1) or thisArg.start + thisArg.length <= thisItem.1.start) {
+              continue archive;
+          };
+
+          // Calculate the start and end indices of the intersection between the requested range and the current archive.
+          let overlapStart = Nat.max(seeking, thisItem.1.start);
+          let overlapEnd = Nat.min(thisArg.start + thisArg.length - 1, thisItem.1.start + thisItem.1.length - 1);
+          let overlapLength = Nat.sub(overlapEnd, overlapStart) + 1;
+
+          // Create an archive request for the overlapping range.
+          Vec.add(archives,({
+                start = overlapStart;
+                length = overlapLength;
+            }, (actor(Principal.toText(thisItem.0)) : Service.ArchiveService).get_transactions));
+  
+            
+
+          // If the overlap ends exactly where the requested range ends, break out of the loop.
+          if (overlapEnd == Nat.sub(thisArg.start + thisArg.length, 1)) {
+              break archive;
+          };
+
+          // Update seeking to the next desired transaction.
+          seeking := overlapEnd + 1;
+        };
+        
+      };
+
+
+      debug if(debug_channel.get_transactions) D.print("returning transactions result" # debug_show(ledger_length, Vec.size(transactions), Vec.size(archives)));
+      //build the result
+      return {
+        first_index = state.firstIndex;
+        log_length = ledger_length;
+        transactions = Vec.toArray(transactions);
+        archived_transactions = Vec.toArray(Vec.map<(TransactionRange, Service.GetRosettaArchiveTransactionsFn), Service.RosettaArchivedRange>(archives, func(x :(TransactionRange, Service.GetRosettaArchiveTransactionsFn)):  Service.RosettaArchivedRange {
+          {
+            start = x.0.start;
+            length = x.0.length;
+            callback = x.1;
+          }
+
+        }));
+      }
+    }
   };
+  
 };
