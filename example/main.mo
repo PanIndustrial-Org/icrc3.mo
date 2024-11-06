@@ -7,6 +7,7 @@ import Blob "mo:base/Blob";
 import CertifiedData "mo:base/CertifiedData";
 import CertTree "mo:cert/CertTree";
 import Service "../src/service";
+import ClassPlusLib "../../../../ICDevs/projects/ClassPlus/src/";
 
 import D "mo:base/Debug";
 
@@ -18,11 +19,71 @@ shared(init_msg) actor class Example(_args: ICRC3.InitArgs) = this {
   let ct = CertTree.Ops(cert_store);
 
   D.print("initalizing example");
-  stable var icrc3_migration_state = ICRC3.init(ICRC3.initialState() , #v0_1_0(#id), _args, init_msg.caller);
+
+  let manager = ClassPlusLib.ClassPlusInitializationManager(init_msg.caller, Principal.fromActor(this), true);
+
+
+  public type Environment = {
+    canister : () -> Principal;
+    get_time : () -> Int;
+    refresh_state: () -> ICRC3.CurrentState;
+  };
+
+  func get_environment() : Environment {
+    {
+      canister = get_canister;
+      get_time = get_time;
+      refresh_state = func() : ICRC3.CurrentState{
+        icrc3().get_state();
+      };
+    };
+  };
+
+    private func get_icrc3_environment() : ICRC3.Environment{
+      {
+        updated_certification = ?updated_certification;
+        get_certificate_store = ?get_certificate_store;
+      };
+    };
+
+
+  stable var icrc3_migration_state = ICRC3.initialState();
+
+  private func get_certificate_store() : CertTree.Store {
+    D.print("returning cert store " # debug_show(cert_store));
+    return cert_store;
+  };
+
+  private func updated_certification(cert: Blob, lastIndex: Nat) : Bool{
+
+    D.print("updating the certification " # debug_show(CertifiedData.getCertificate(), ct.treeHash()));
+    ct.setCertifiedData();
+    D.print("did the certification " # debug_show(CertifiedData.getCertificate()));
+    return true;
+  };
+
+  let icrc3 = ICRC3.Init<system>({
+    manager = manager;
+    initialState = icrc3_migration_state;
+    args = ?_args;
+    pullEnvironment = ?get_icrc3_environment;
+    onInitialize = ?(func(newClass: ICRC3.ICRC3) : async*(){
+       if(newClass.stats().supportedBlocks.size() == 0){
+          newClass.update_supported_blocks([
+            {block_type = "uupdate_user"; url="https://git.com/user"},
+            {block_type ="uupdate_role"; url="https://git.com/user"},
+            {block_type ="uupdate_use_role"; url="https://git.com/user"}
+          ])
+        };
+    });
+    onStorageChange = func(state: ICRC3.State){
+      icrc3_migration_state := state;
+    };
+  });
 
   D.print("loading the state");
 
-  let #v0_1_0(#data(icrc3_state_current)) = icrc3_migration_state;
+  
 
   D.print("loaded the state");
 
@@ -40,10 +101,7 @@ shared(init_msg) actor class Example(_args: ICRC3.InitArgs) = this {
     };
   };
 
-  private func get_certificate_store() : CertTree.Store {
-    D.print("returning cert store " # debug_show(cert_store));
-    return cert_store;
-  };
+
 
   private func get_time() : Int{
       //note: you may want to implement a testing framework where you can set this time manually
@@ -58,63 +116,16 @@ shared(init_msg) actor class Example(_args: ICRC3.InitArgs) = this {
     Time.now();
   };
 
-  func get_state() : ICRC3.CurrentState{
-    return icrc3_state_current;
-  };
+
 
   public query func get_transactions(args: Service.GetRosettaBlocksRequest) : async Service.GetRosettaBlocksResults {
     return icrc3().get_rosetta_blocks(args);
   };
 
-  public type Environment = {
-    canister : () -> Principal;
-    get_time : () -> Int;
-    refresh_state: () -> ICRC3.CurrentState;
-  };
 
-  func get_environment() : Environment {
-    {
-      canister = get_canister;
-      get_time = get_time;
-      refresh_state = get_state;
-    };
-  };
 
-  private var _icrc3 : ?ICRC3.ICRC3 = null;
 
-  private func get_icrc3_environment() : ICRC3.Environment{
-    ?{
-      updated_certification = ?updated_certification;
-      get_certificate_store = ?get_certificate_store;
-    };
-  };
-
-  private func updated_certification(cert: Blob, lastIndex: Nat) : Bool{
-
-    D.print("updating the certification " # debug_show(CertifiedData.getCertificate(), ct.treeHash()));
-    ct.setCertifiedData();
-    D.print("did the certification " # debug_show(CertifiedData.getCertificate()));
-    return true;
-  };
-
-  func icrc3() : ICRC3.ICRC3 {
-    switch(_icrc3){
-      case(null){
-        let initclass : ICRC3.ICRC3 = ICRC3.ICRC3(?icrc3_migration_state, Principal.fromActor(this), get_icrc3_environment());
-        _icrc3 := ?initclass;
-
-        if(initclass.stats().supportedBlocks.size() == 0){
-          initclass.update_supported_blocks([
-            {block_type = "uupdate_user"; url="https://git.com/user"},
-            {block_type ="uupdate_role"; url="https://git.com/user"},
-            {block_type ="uupdate_use_role"; url="https://git.com/user"}
-          ])
-        };
-        initclass;
-      };
-      case(?val) val;
-    };
-  };
+  
 
   public query func icrc3_get_blocks(args: ICRC3.GetBlocksArgs) : async ICRC3.GetBlocksResult{
     return icrc3().get_blocks(args);

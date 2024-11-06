@@ -30,6 +30,7 @@ import CertTree "mo:cert/CertTree";
 import MTree "mo:cert/MerkleTree";
 import Service "service";
 import Rosetta "./utils/Rosetta";
+import ClassPlusLib "../../../../ICDevs/projects/ClassPlus/src/";
 module {
 
   /// Debug channel configuration
@@ -49,7 +50,7 @@ module {
   public type CurrentState = MigrationTypes.Current.State;
 
   /// Arguments for initializing the migration
-  public type InitArgs = MigrationTypes.Args;
+  public type InitArgs = MigrationTypes.Current.InitArgs;
 
   /// Represents a transaction
   public type Transaction = MigrationTypes.Current.Transaction;
@@ -75,7 +76,7 @@ module {
 
 
   /// Represents the environment object passed to the ICRC3 class
-  public type Environment = ?{
+  public type Environment = {
     updated_certification : ?((Blob, Nat) -> Bool); //called when a certification has been made
     get_certificate_store : ?(() -> CertTree.Store); //needed to pass certificate store to the class
   };
@@ -104,23 +105,58 @@ module {
   /// Helper library for common functions
   public let helper = HelperLib;
   public type Service = Service.Service;
+
+  public type ClassPlus = ClassPlusLib.ClassPlus<
+    ICRC3, 
+    State,
+    InitArgs,
+    Environment>;
+
+  public func ClassPlusGetter(item: ?ClassPlus) : () -> ICRC3 {
+    ClassPlusLib.ClassPlusGetter<ICRC3, State, InitArgs, Environment>(item);
+  };
+
+  public func Init<system>(config : {
+      manager: ClassPlusLib.ClassPlusInitializationManager;
+      initialState: State;
+      args : ?InitArgs;
+      pullEnvironment : ?(() -> Environment);
+      onInitialize: ?(ICRC3 -> async*());
+      onStorageChange : ((State) ->())
+    }) :()-> ICRC3{
+
+      ClassPlusLib.ClassPlus<system,
+        ICRC3, 
+        State,
+        InitArgs,
+        Environment>({config with constructor = ICRC3}).get;
+    };
+
+
   /// The ICRC3 class manages the transaction ledger, archives, and certificate store.
   ///
   /// The ICRC3 class provides functions for adding a record to the ledger, getting
   /// archives, getting the certificate, and more.
-  public class ICRC3(stored: ?State, canister: Principal, environment: Environment){
+  public class ICRC3(stored: ?State, caller: Principal, canister: Principal, args: ?InitArgs, _environment: ?Environment, storageChanged: (State) -> ()){
+
+    public let environment = switch(_environment){
+      case(null) D.trap("No Environment Provided");
+      case(?val) val;
+    };
 
     /// The current state of the migration
     var state : CurrentState = switch(stored){
       case(null) {
-        let #v0_1_0(#data(foundState)) = init(initialState(),currentStateVersion, null, canister);
+        let #v0_1_0(#data(foundState)) = init(initialState(),currentStateVersion, args, caller, canister);
         foundState;
       };
       case(?val) {
-        let #v0_1_0(#data(foundState)) = init(val, currentStateVersion, null, canister);
+        let #v0_1_0(#data(foundState)) = init(val, currentStateVersion, args, caller, canister);
         foundState;
       };
     };
+
+    storageChanged(#v0_1_0(#data(state)));
 
 
 
@@ -242,32 +278,30 @@ module {
       debug if(debug_channel.add_record) D.print("about to certify " # debug_show(state.latest_hash));
 
       //certify the new record if the cert store is provided
-      switch(environment){
-        case(null){};
-        case(?env){
 
-          switch(env.get_certificate_store, state.latest_hash){
-            
-            case(?gcs, ?latest_hash){
-              debug if(debug_channel.add_record) D.print("have store" # debug_show(gcs()));
-              let ct = CertTree.Ops(gcs());
-              ct.put([Text.encodeUtf8("last_block_index")], encodeBigEndian(state.lastIndex));
-              ct.put([Text.encodeUtf8("last_block_hash")], latest_hash);
-              ct.setCertifiedData();
-            };
-            case(_){};
-          };
-          
-          switch(env.updated_certification, state.latest_hash){
-            
-            case(?uc, ?latest_hash){
-              debug if(debug_channel.add_record) D.print("have cert update");
-              ignore uc(latest_hash, state.lastIndex);
-            };
-            case(_){};
-          };
+
+      switch(environment.get_certificate_store, state.latest_hash){
+        
+        case(?gcs, ?latest_hash){
+          debug if(debug_channel.add_record) D.print("have store" # debug_show(gcs()));
+          let ct = CertTree.Ops(gcs());
+          ct.put([Text.encodeUtf8("last_block_index")], encodeBigEndian(state.lastIndex));
+          ct.put([Text.encodeUtf8("last_block_hash")], latest_hash);
+          ct.setCertifiedData();
         };
+        case(_){};
       };
+      
+      switch(environment.updated_certification, state.latest_hash){
+        
+        case(?uc, ?latest_hash){
+          debug if(debug_channel.add_record) D.print("have cert update");
+          ignore uc(latest_hash, state.lastIndex);
+        };
+        case(_){};
+      };
+    
+  
 
       return state.lastIndex;
     };
@@ -339,32 +373,30 @@ module {
     /// - The data certificate (nullable)
     public func get_tip_certificate() : ?Service.DataCertificate{
       debug if(debug_channel.certificate) D.print("in get tip certificate");
-      switch(environment){
-        case(null){};
-        case(?env){
-          debug if(debug_channel.certificate) D.print("have env");
-          switch(env.get_certificate_store){
-            case(null){};
-            case(?gcs){
-              debug if(debug_channel.certificate) D.print("have gcs");
-              let ct = CertTree.Ops(gcs());
-              let blockWitness = ct.reveal([Text.encodeUtf8("last_block_index")]);
-              let hashWitness = ct.reveal([Text.encodeUtf8("last_block_hash")]);
-              let merge = MTree.merge(blockWitness,hashWitness);
-              let witness = ct.encodeWitness(merge);
-              return ?{
-                certificate = switch(CertifiedData.getCertificate()){
-                  case(null){
-                    debug if(debug_channel.certificate) D.print("certified returned null");
-                    return null;
-                  };
-                  case(?val) val;
+     
+
+        debug if(debug_channel.certificate) D.print("have env");
+        switch(environment.get_certificate_store){
+          case(null){};
+          case(?gcs){
+            debug if(debug_channel.certificate) D.print("have gcs");
+            let ct = CertTree.Ops(gcs());
+            let blockWitness = ct.reveal([Text.encodeUtf8("last_block_index")]);
+            let hashWitness = ct.reveal([Text.encodeUtf8("last_block_hash")]);
+            let merge = MTree.merge(blockWitness,hashWitness);
+            let witness = ct.encodeWitness(merge);
+            return ?{
+              certificate = switch(CertifiedData.getCertificate()){
+                case(null){
+                  debug if(debug_channel.certificate) D.print("certified returned null");
+                  return null;
                 };
-                hash_tree = witness;
+                case(?val) val;
               };
+              hash_tree = witness;
             };
           };
-        };
+
       };
 
       return null;
@@ -378,33 +410,28 @@ module {
     /// - The tip information
     public func get_tip() : Tip {
       debug if(debug_channel.certificate) D.print("in get tip certificate");
-      switch(environment){
-        case(null){};
-        case(?env){
-          debug if(debug_channel.certificate) D.print("have env");
-          switch(env.get_certificate_store){
-            case(null){};
-            case(?gcs){
-              debug if(debug_channel.certificate) D.print("have gcs");
-              let ct = CertTree.Ops(gcs());
-              let blockWitness = ct.reveal([Text.encodeUtf8("last_block_index")]);
-              let hashWitness = ct.reveal([Text.encodeUtf8("last_block_hash")]);
-              let merge = MTree.merge(blockWitness,hashWitness);
-              let witness = ct.encodeWitness(merge);
-              return {
-                last_block_hash = switch(state.latest_hash){
-                  case(null) D.trap("No root");
-                  case(?val) val;
-                };
-                last_block_index = encodeBigEndian(state.lastIndex);
-                hash_tree = witness;
-              };
+
+      debug if(debug_channel.certificate) D.print("have env");
+      switch(environment.get_certificate_store){
+        case(null){D.trap("No certificate store provided")};
+        case(?gcs){
+          debug if(debug_channel.certificate) D.print("have gcs");
+          let ct = CertTree.Ops(gcs());
+          let blockWitness = ct.reveal([Text.encodeUtf8("last_block_index")]);
+          let hashWitness = ct.reveal([Text.encodeUtf8("last_block_hash")]);
+          let merge = MTree.merge(blockWitness,hashWitness);
+          let witness = ct.encodeWitness(merge);
+          return {
+            last_block_hash = switch(state.latest_hash){
+              case(null) D.trap("No root");
+              case(?val) val;
             };
+            last_block_index = encodeBigEndian(state.lastIndex);
+            hash_tree = witness;
           };
         };
-      };
 
-      D.trap("no environment");
+      };
     };
 
 

@@ -2,6 +2,7 @@ import MigrationTypes "./types";
 import v0_0_0 "./v000_000_000";
 import v0_1_0 "./v000_001_000";
 import D "mo:base/Debug";
+import Principal "mo:base/Principal";
 
 module {
   let upgrades = [
@@ -27,7 +28,8 @@ module {
     prevState: MigrationTypes.State, 
     nextState: MigrationTypes.State, 
     args: MigrationTypes.Args,
-    caller: Principal
+    caller: Principal,
+    canister: Principal
   ): MigrationTypes.State {
 
    
@@ -42,7 +44,7 @@ module {
       
       migrationId := if (nextMigrationId > migrationId) migrationId + 1 else migrationId - 1;
 
-      state := migrate(state, args, caller);
+      state := migrate(state, args, caller, canister);
       
     };
 

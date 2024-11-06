@@ -15,6 +15,11 @@
           "main": "testActor/test_runner.mo",
           "type": "motoko",
           "gzip": true
+        },
+        "test_runner_rosetta": {
+          "main": "testActor/test_rosetta.mo",
+          "type": "motoko",
+          "gzip": true
         }
         
     },
@@ -27,6 +32,5 @@
             "subnet_type": "application"
         }
     },
-    "dfx": "0.19.0",
     "version": 1
 }

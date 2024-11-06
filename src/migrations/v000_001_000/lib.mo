@@ -10,7 +10,7 @@ module {
 
   type Transaction = v0_1_0.Transaction;
 
-  public func upgrade(prevmigration_state: MigrationTypes.State, args: MigrationTypes.Args, caller: Principal): MigrationTypes.State {
+  public func upgrade(prevmigration_state: MigrationTypes.State, args: MigrationTypes.Args, caller: Principal, canister: Principal): MigrationTypes.State {
 
     
 
@@ -56,7 +56,7 @@ module {
     return #v0_1_0(#data(state));
   };
 
-  public func downgrade(prev_migration_state: MigrationTypes.State, args: MigrationTypes.Args, caller: Principal): MigrationTypes.State {
+  public func downgrade(prev_migration_state: MigrationTypes.State, args: MigrationTypes.Args, caller: Principal, canister: Principal): MigrationTypes.State {
 
     return #v0_0_0(#data);
   };

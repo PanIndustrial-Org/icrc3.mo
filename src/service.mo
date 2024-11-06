@@ -113,7 +113,7 @@ module
     amount : Nat;
     spender : ?Account;
   };
-
+ 
   public type DataCertificate =  {
     // See https://internetcomputer.org/docs/current/references/ic-interface-spec#certification
     certificate : Blob;
@@ -144,5 +144,6 @@ module
     icrc3_get_blocks : query (GetBlocksArgs) -> async (GetBlocksResult);
     icrc3_supported_block_types: query () -> async [BlockType];
     get_transactions : query (GetRosettaBlocksRequest) -> async RosettaArchivedResult;
+    get_tip_certificate : query () -> async DataCertificate;
   };
 }

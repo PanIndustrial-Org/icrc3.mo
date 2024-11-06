@@ -22,7 +22,7 @@ import ICRC3 "../src";
 
 shared(init_msg) actor class() = this {
 
-  let baseState = ?{
+  let baseState = ({
     maxActiveRecords = 4;
     settleToRecords = 2;
     maxRecordsInArchiveInstance = 6;
@@ -37,7 +37,7 @@ shared(init_msg) actor class() = this {
         url = "url";
       }
     ]
-  };
+  }: ICRC3.InitArgs);
 
   public shared func test() : async {
         #success;
@@ -482,7 +482,6 @@ shared(init_msg) actor class() = this {
         D.print("have canister " # debug_show(Principal.fromActor(childv1)));
 
         //check it is empty
-
         let emptyResponse : ICRC3Types.Current.GetTransactionsResult = try{
           await childv1.icrc3_get_blocks([{start=0; length=1000}]);
         } catch(e){

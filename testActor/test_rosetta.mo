@@ -19,7 +19,7 @@ import ICRC3 "../src";
 
 shared(init_msg) actor class() = this {
 
-  let baseState = ?{
+  let baseState = {
     maxActiveRecords = 4;
     settleToRecords = 2;
     maxRecordsInArchiveInstance = 6;
