@@ -63,6 +63,8 @@ module
     icrc3_get_archives : query (GetArchivesArgs) -> async (GetArchivesResult) ;
     icrc3_get_tip_certificate : query () -> async (?DataCertificate);
     icrc3_get_blocks : query (GetBlocksArgs) -> async (GetBlocksResult);
-     icrc3_supported_block_types: query () -> async [BlockType];
+    icrc3_supported_block_types: query () -> async [BlockType];
+    get_tip_certificate : query () -> async DataCertificate;
+
   };
 }

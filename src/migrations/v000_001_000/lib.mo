@@ -2,6 +2,7 @@ import MigrationTypes "../types";
 import v0_1_0 "types";
 
 import D "mo:base/Debug";
+import Principal "mo:base/Principal";
 
 import Vec "mo:vector";
 import Map "mo:map9/Map";
@@ -10,7 +11,7 @@ module {
 
   type Transaction = v0_1_0.Transaction;
 
-  public func upgrade(prevmigration_state: MigrationTypes.State, args: MigrationTypes.Args, caller: Principal): MigrationTypes.State {
+  public func upgrade(prevmigration_state: MigrationTypes.State, args: ?MigrationTypes.Args, caller: Principal, canister: Principal): MigrationTypes.State {
 
     
 
@@ -56,9 +57,6 @@ module {
     return #v0_1_0(#data(state));
   };
 
-  public func downgrade(prev_migration_state: MigrationTypes.State, args: MigrationTypes.Args, caller: Principal): MigrationTypes.State {
 
-    return #v0_0_0(#data);
-  };
 
 };
