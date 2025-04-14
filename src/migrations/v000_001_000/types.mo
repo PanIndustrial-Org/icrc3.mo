@@ -15,10 +15,12 @@ import Nat32 "mo:base/Nat32";
 import D "mo:base/Debug";
 import SW "mo:stable-write-only";
 import Map "mo:map9/Map";
+import CertTreeLib "mo:cert/CertTree";
 
 module {
 
   //public let CandyTypes = CandyTypesLib;
+  public let CertTree = CertTreeLib;
 
   public type Value = { 
     #Blob : Blob; 
@@ -230,5 +232,12 @@ module {
       archiveControllers : ??[Principal];
       supportedBlocks : [BlockType];
     };
+
+    public type Environment = {
+      updated_certification : ?((Blob, Nat) -> Bool); //called when a certification has been made
+      get_certificate_store : ?(() -> CertTree.Store); //needed to pass certificate store to the class
+    };
+
+    
 
 };

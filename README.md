@@ -12,68 +12,97 @@ import ICRC3 "mo:icrc3.mo";
 
 ## Initialization
 
-This ICRC3 class uses a migration pattern as laid out in https://github.com/ZhenyaUsenko/motoko-migrations, but encapsulates the pattern in the Class+ pattern as described at https://forum.dfinity.org/t/writing-motoko-stable-libraries/21201 . As a result, when you insatiate the class you need to pass the stable memory state into the class:
+To properly instantiate the ICRC3 component, follow the example below. This implementation uses the `ClassPlus` pattern for managing stable memory and migrations.
 
-```
-stable var icrc3_migration_state = ICRC3.init(ICRC3.initialState() , #v0_1_0(#id), _args, init_msg.caller);
+### Example Initialization
 
-  let #v0_1_0(#data(icrc3_state_current)) = icrc3_migration_state;
+```motoko
+import ICRC3 "mo:icrc3.mo";
+import Principal "mo:base/Principal";
+import CertTree "mo:cert/CertTree";
+import ClassPlus "mo:class-plus";
 
-  private var _icrc3 : ?ICRC3.ICRC3 = null;
+shared(init_msg) actor class Example(_args: ?ICRC3.InitArgs) = this {
 
-  private func get_icrc3_environment() : ICRC3.Environment{
-    ?{
+  stable let cert_store : CertTree.Store = CertTree.newStore();
+  let ct = CertTree.Ops(cert_store);
+
+  let manager = ClassPlus.ClassPlusInitializationManager(init_msg.caller, Principal.fromActor(this), true);
+
+  private func get_icrc3_environment() : ICRC3.Environment {
+    {
       updated_certification = ?updated_certification;
       get_certificate_store = ?get_certificate_store;
     };
   };
 
-  private func updated_certification(cert: Blob, lastIndex: Nat) : Bool{
+  private func get_certificate_store() : CertTree.Store {
+    return cert_store;
+  };
 
+  private func updated_certification(cert: Blob, lastIndex: Nat) : Bool {
     ct.setCertifiedData();
     return true;
   };
 
-  func icrc3() : ICRC3.ICRC3 {
-    switch(_icrc3){
-      case(null){
-        let initclass : ICRC3.ICRC3 = ICRC3.ICRC3(?icrc3_migration_state, Principal.fromActor(this), get_icrc3_environment());
-        _icrc3 := ?initclass;
-        initclass;
+  stable var icrc3_migration_state = ICRC3.initialState();
+
+  let icrc3 = ICRC3.Init<system>({
+    manager = manager;
+    initialState = icrc3_migration_state;
+    args = _args;
+    pullEnvironment = ?get_icrc3_environment;
+    onInitialize = ?(func(newClass: ICRC3.ICRC3) : async*() {
+      if (newClass.stats().supportedBlocks.size() == 0) {
+        newClass.update_supported_blocks([
+          { block_type = "uupdate_user"; url = "https://git.com/user" },
+          { block_type = "uupdate_role"; url = "https://git.com/user" },
+          { block_type = "uupdate_use_role"; url = "https://git.com/user" }
+        ]);
       };
-      case(?val) val;
+    });
+    onStorageChange = func(state: ICRC3.State) {
+      icrc3_migration_state := state;
     };
+  });
+
+  public query func icrc3_get_blocks(args: ICRC3.GetBlocksArgs) : async ICRC3.GetBlocksResult {
+    return icrc3().get_blocks(args);
   };
 
-```
-The above pattern will allow your class to call icrc3().XXXXX to easily access the stable state of your class and you will not have to worry about pre or post upgrade methods.
-
-Init args:
-
-```
-  public type InitArgs = {
-      maxActiveRecords : Nat; //allowed max active records on this canister
-      settleToRecords : Nat; //number of records to settle to during the clean up process
-      maxRecordsInArchiveInstance : Nat; //specify the max number of archive items to put on an archive instance
-      maxArchivePages : Nat; //Max number of pages allowed on the archivserver
-      archiveIndexType : SW.IndexType; //Index type to use for the memory of the archive
-      maxRecordsToArchive : Nat; //Max number of archive items to archive in one round
-      archiveCycles : Nat; //number of cycles to sent to a new archive canister;
-      archiveControllers : ??[Principal]; //override the default controllers. The canister will always add itself to this group;
-    };
-```
-
-For information on maxArchivePages and stable memory management, see https://github.com/skilesare/StableWriteOnly.mo. This configuration allows your archives to use up to 96GB(as of 12/5/2023) stable memory.
-
-### Environment
-
-The environment pattern lets you pass dynamic information about your environment to the class.
-
-```
-public type Environment = ?{
-    updated_certification : ?((Blob, Nat) -> Bool); //called when a certification has been made
-    get_certificate_store : ?(() -> CertTree.Store); //needed to pass certificate store to the class
+  public query func icrc3_get_archives(args: ICRC3.GetArchivesArgs) : async ICRC3.GetArchivesResult {
+    return icrc3().get_archives(args);
   };
+
+  public query func icrc3_supported_block_types() : async [ICRC3.BlockType] {
+    return icrc3().supported_block_types();
+  };
+
+  public query func icrc3_get_tip_certificate() : async ?ICRC3.DataCertificate {
+    return icrc3().get_tip_certificate();
+  };
+
+  public query func get_tip() : async ICRC3.Tip {
+    return icrc3().get_tip();
+  };
+};
+```
+
+### InitArgs
+
+The `InitArgs` type defines the configuration for the ICRC3 component:
+
+```motoko
+public type InitArgs = {
+  maxActiveRecords : Nat; // Allowed max active records on this canister
+  settleToRecords : Nat; // Number of records to settle to during the clean-up process
+  maxRecordsInArchiveInstance : Nat; // Max number of archive items per archive instance
+  maxArchivePages : Nat; // Max number of pages allowed on the archive server
+  archiveIndexType : SW.IndexType; // Index type for archive memory
+  maxRecordsToArchive : Nat; // Max number of records to archive in one round
+  archiveCycles : Nat; // Number of cycles to send to a new archive canister
+  archiveControllers : ?[Principal]; // Override default controllers; the canister adds itself to this group
+};
 ```
 
 ## Maintenance and Archival

@@ -1,0 +1,6 @@
+v0.3.0
+
+- Added the ClassPlus instantiation pattern.
+- See https://mops.one/class-plus
+- Breaking change: You will need to reconfigure your instantiation and the way you pull your environment, but will not need to migrate your state variable as it has the same structure.
+- Update mops versions
