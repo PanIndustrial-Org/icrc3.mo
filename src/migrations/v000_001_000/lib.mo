@@ -5,7 +5,7 @@ import D "mo:base/Debug";
 import Principal "mo:base/Principal";
 
 import Vec "mo:vector";
-import Map "mo:map9/Map";
+import Map "mo:map/Map";
 
 module {
 

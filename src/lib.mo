@@ -22,12 +22,12 @@ import Nat8 "mo:base/Nat8";
 import Nat "mo:base/Nat";
 import Text "mo:base/Text";
 import Vec "mo:vector";
-import Map "mo:map9/Map";
-import Set "mo:map9/Set";
+import Map "mo:map/Map";
+import Set "mo:map/Set";
 import RepIndy "mo:rep-indy-hash";
 import HelperLib "helper";
 
-import MTree "mo:cert/MerkleTree";
+import MTree "mo:ic-certification/MerkleTree";
 import Service "service";
 import ClassPlusLib "mo:class-plus";
 
@@ -769,8 +769,14 @@ module {
 
       //get the transactions on this canister
       let transactions = Vec.new<Service.Block>();
-      for(thisArg in args.vals()){
+      label proc for(thisArg in args.vals()){
         debug if(debug_channel.get_transactions) D.print("setting start " # debug_show(thisArg.start + thisArg.length, state.firstIndex));
+        
+        // Skip if length is 0 - no blocks to retrieve
+        if(thisArg.length == 0) {
+          continue proc;
+        };
+        
         if(thisArg.start + thisArg.length > state.firstIndex){
           debug if(debug_channel.get_transactions) D.print("setting start " # debug_show(thisArg.start + thisArg.length, state.firstIndex));
           let start = if(thisArg.start <= state.firstIndex){
@@ -787,15 +793,21 @@ module {
 
           let end = if(Vec.size(state.ledger)==0){
             0;
-          } else if(thisArg.start + thisArg.length >= state.lastIndex){
+          } else if(thisArg.start + thisArg.length > state.lastIndex + 1){
             Nat.sub(Vec.size(state.ledger), 1);
           } else {
-            Nat.sub((Nat.sub(state.lastIndex,state.firstIndex)), (Nat.sub(state.lastIndex, (thisArg.start + thisArg.length))))
+            // Calculate the actual end index (exclusive), then make it inclusive for Iter.range
+            let localEndIndex = Nat.sub(thisArg.start + thisArg.length, state.firstIndex);
+            if(localEndIndex > 0 and localEndIndex <= Vec.size(state.ledger)) {
+              Nat.sub(localEndIndex, 1);
+            } else {
+              0;
+            };
           };
 
           debug if(debug_channel.get_transactions) D.print("getting local transactions" # debug_show(start,end));
           //some of the items are on this server
-          if(Vec.size(state.ledger) > 0){
+          if(Vec.size(state.ledger) > 0 and start <= end){
             label search for(thisItem in Iter.range(start, end)){
               debug if(debug_channel.get_transactions) D.print("testing" # debug_show(thisItem));
               if(thisItem >= Vec.size(state.ledger)){
@@ -807,7 +819,6 @@ module {
               });
             };
           };
-
         };
       };
 

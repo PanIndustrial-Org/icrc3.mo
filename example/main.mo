@@ -5,7 +5,7 @@ import Timer "mo:base/Timer";
 import Nat "mo:base/Nat";
 import Blob "mo:base/Blob";
 import CertifiedData "mo:base/CertifiedData";
-import CertTree "mo:cert/CertTree";
+import CertTree "mo:ic-certification/CertTree";
 import ClassPlus "mo:class-plus";
 
 import D "mo:base/Debug";

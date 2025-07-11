@@ -14,8 +14,8 @@ import Nat "mo:base/Nat";
 import Nat32 "mo:base/Nat32";
 import D "mo:base/Debug";
 import SW "mo:stable-write-only";
-import Map "mo:map9/Map";
-import CertTreeLib "mo:cert/CertTree";
+import Map "mo:map/Map";
+import CertTreeLib "mo:ic-certification/CertTree";
 
 module {
 
