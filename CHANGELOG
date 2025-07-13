@@ -1,3 +1,18 @@
+CHANGELOG
+
+v0.3.2
+
+- Faster SHA2
+- Upgraded moc and base used.
+- Added Legacy transaction helper that will convert ICRC3 transactions into Legacy Blocks returned by SNS Ledgers.  If the block is not supported the kind will be `unknown` and all items will be null.
+- Fixed off by one return amount in archive canisters
+- Added a helper to upgrade the existing archive canisters.
+
+v0.3.1
+
+- Mops updates
+- Fixed bug where too many items were being returned.
+
 v0.3.0
 
 - Added the ClassPlus instantiation pattern.
