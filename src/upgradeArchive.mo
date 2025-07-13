@@ -13,16 +13,17 @@ module {
     label proc for(thisCanister in canisters.vals()){
       try{
         //note: args is stable in archive so these init items are a noop
-        await (system Archive)(#upgrade(canisterId))({
+        let anActor : actor{} = actor(Principal.toText(thisCanister));
+        let upgraded =await (system Archive.Archive)(#upgrade anActor)({
           maxRecords = 0;
           maxPages = 62500;
           indexType = #Stable;
           firstIndex = 0;
         })
       }catch(e){
-        result.push(#err("Failed to upgrade archive canister " # Principal.toText(thisCanister) # ": " # Error.message(e)));
-      }
-      result.push(#ok(()));
+        result.add(#err("Failed to upgrade archive canister " # Principal.toText(thisCanister) # ": " # Error.message(e)));
+      };
+      result.add(#ok(()));
     };
     return Buffer.toArray(result);
 

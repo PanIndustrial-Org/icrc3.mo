@@ -7,6 +7,7 @@ import Blob "mo:base/Blob";
 import CertifiedData "mo:base/CertifiedData";
 import CertTree "mo:ic-certification/CertTree";
 import ClassPlus "mo:class-plus";
+import Upgrade "../src/upgradeArchive";
 
 import D "mo:base/Debug";
 
