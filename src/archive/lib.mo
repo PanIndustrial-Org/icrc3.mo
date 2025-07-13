@@ -5,6 +5,7 @@ import Vec "mo:vector";
 import D "mo:base/Debug";
 import Nat "mo:base/Nat";
 import Iter "mo:base/Iter";
+import Legacy = "../legacy"
 
 shared ({ caller = ledger_canister_id }) actor class Archive (_args : T.Current.ArchiveInitArgs) = this {
 
@@ -73,6 +74,42 @@ shared ({ caller = ledger_canister_id }) actor class Archive (_args : T.Current.
         return _get_transaction(tx_index);
     };
 
+    public shared query func get_transactions(args: {start : Nat; length: Nat}) : async {
+      transactions : [Legacy.Transaction];
+    } {
+        if(args.length > 100000) {
+            D.trap("You cannot request more than 100000 transactions at once");
+        };
+        let results = Vec.new<Legacy.Transaction>();
+        for(thisItem in Iter.range(args.start, args.start + args.length - 1)){
+            switch(_get_transaction(thisItem)){
+                case(null){
+                    //should be unreachable...do we return an error?
+                };
+                case(?val){
+                    let items = Legacy.convertICRC3ToLegacyTransaction([val]);
+                    if(items.size() == 0){
+                        Vec.add(results,{
+                          burn = null;
+                          kind = "not_found";
+                          mint = null;
+                          approve = null;
+                          timestamp = 0;
+                          transfer = null;
+                        } : Legacy.Transaction)
+                    } else {
+                        for (item in items.vals()) {
+                            Vec.add(results, item);
+                        };
+                    };
+                };
+            };
+        };
+        return {
+          transactions = Vec.toArray(results);
+        };
+    };
+
     private func _get_transaction(tx_index : T.Current.TxIndex) : ?Transaction {
         let stats = sw.stats();
         debug if(debug_channel.get) D.print("getting transaction" # debug_show(tx_index, args.firstIndex, stats));
@@ -91,32 +128,30 @@ shared ({ caller = ledger_canister_id }) actor class Archive (_args : T.Current.
 
       let transactions = Vec.new<{id:Nat; block: Transaction}>();
       for(thisArg in req.vals()){
-        var tracker = thisArg.start;
-        for(thisItem in Iter.range(thisArg.start, thisArg.start + thisArg.length - 1)){
-          debug if(debug_channel.get) D.print("getting" # debug_show(thisItem));
-          switch(_get_transaction(thisItem)){
-            case(null){
-              //should be unreachable...do we return an error?
-            };
-            case(?val){
-              debug if(debug_channel.get) D.print("found" # debug_show(val));
-              Vec.add(transactions, {id = tracker; block = val});
+        // Skip if length is 0 - no blocks to retrieve
+        if(thisArg.length != 0) {
+          // Calculate the end index (exclusive)
+          let endIndex = thisArg.start + thisArg.length;
+          for(thisItem in Iter.range(thisArg.start, endIndex - 1)){
+            debug if(debug_channel.get) D.print("getting" # debug_show(thisItem));
+            switch(_get_transaction(thisItem)){
+              case(null){
+                //should be unreachable...do we return an error?
+              };
+              case(?val){
+                debug if(debug_channel.get) D.print("found" # debug_show(val));
+                Vec.add(transactions, {id = thisItem; block = val}); // Use thisItem directly as the ID
+              };
             };
           };
-          tracker += 1;
         };
       };
 
-      { 
+      return { 
           blocks = Vec.toArray(transactions);
           archived_blocks = [];
           log_length =  0;
-          certificate = null;
         };
-       /*  
-       
-       Currently this archive canister only supports one level of archive indexes. It does not have the ability to split itself and create a tree structure.
-       */
     };
 
     public shared query func remaining_capacity() : async Nat {
