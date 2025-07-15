@@ -21,6 +21,7 @@ import Timer "mo:base/Timer";
 import Nat8 "mo:base/Nat8";
 import Nat "mo:base/Nat";
 import Text "mo:base/Text";
+import Array "mo:base/Array";
 import Vec "mo:vector";
 import Map "mo:map/Map";
 import Set "mo:map/Set";
@@ -30,6 +31,7 @@ import HelperLib "helper";
 import MTree "mo:ic-certification/MerkleTree";
 import Service "service";
 import ClassPlusLib "mo:class-plus";
+import LegacyLib "legacy";
 
 module {
 
@@ -101,6 +103,7 @@ module {
 
   /// Helper library for common functions
   public let helper = HelperLib;
+  public let Legacy = LegacyLib;
   public type Service = Service.Service;
 
   public func Init<system>(config : {
@@ -747,15 +750,14 @@ module {
     };
 
     /// Returns a set of transactions and pointers to archives if necessary
+    /// Core function that extracts the shared logic for both get_blocks and get_blocks_legacy
     ///
-    /// This function returns a set of transactions and pointers to archives if necessary.
-    ///
-    /// Arguments:
-    /// - `args`: The transaction range
-    ///
-    /// Returns:
-    /// - The result of getting transactions
-    public func get_blocks(args: Service.GetBlocksArgs) : Service.GetBlocksResult {
+    /// Returns raw blocks and archive information that can be formatted differently
+    private func get_blocks_core(args: [{start: Nat; length: Nat}]) : {
+      ledger_length: Nat;
+      blocks: Vec.Vector<{id: Nat; block: Value}>;
+      archives: Map.Map<Principal, Vec.Vector<TransactionRange>>;
+    } {
 
       debug if(debug_channel.get_transactions) D.print("get_transaction_states" # debug_show(stats()));
       let local_ledger_length = Vec.size(state.ledger);
@@ -768,7 +770,7 @@ module {
       debug if(debug_channel.get_transactions) D.print("have ledger length" # debug_show(ledger_length));
 
       //get the transactions on this canister
-      let transactions = Vec.new<Service.Block>();
+      let transactions = Vec.new<{id: Nat; block: Value}>();
       label proc for(thisArg in args.vals()){
         debug if(debug_channel.get_transactions) D.print("setting start " # debug_show(thisArg.start + thisArg.length, state.firstIndex));
         
@@ -805,6 +807,7 @@ module {
             };
           };
 
+
           debug if(debug_channel.get_transactions) D.print("getting local transactions" # debug_show(start,end));
           //some of the items are on this server
           if(Vec.size(state.ledger) > 0 and start <= end){
@@ -823,7 +826,7 @@ module {
       };
 
       //get any relevant archives
-      let archives = Map.new<Principal, (Vec.Vector<TransactionRange>, MigrationTypes.Current.GetTransactionsFn)>();
+      let archives = Map.new<Principal, Vec.Vector<TransactionRange>>();
 
       for(thisArgs in args.vals()){
         if(thisArgs.start < state.firstIndex){
@@ -848,11 +851,10 @@ module {
                     start = overlapStart;
                     length = overlapLength;
                   });
-                let fn  : MigrationTypes.Current.GetTransactionsFn = (actor(Principal.toText(thisItem.0)) : MigrationTypes.Current.ICRC3Interface).icrc3_get_blocks;
-                ignore Map.put<Principal, (Vec.Vector<TransactionRange>, MigrationTypes.Current.GetTransactionsFn)>(archives, Map.phash, thisItem.0, (newVec, fn));
+                ignore Map.put<Principal, Vec.Vector<TransactionRange>>(archives, Map.phash, thisItem.0, newVec);
               };
               case(?existing){
-                Vec.add(existing.0, {
+                Vec.add(existing, {
                   start = overlapStart;
                   length = overlapLength;
                 });
@@ -870,21 +872,82 @@ module {
         };
       };
 
-
       debug if(debug_channel.get_transactions) D.print("returning transactions result" # debug_show(ledger_length, Vec.size(transactions), Map.size(archives)));
+      
+      return {
+        ledger_length = ledger_length;
+        blocks = transactions;
+        archives = archives;
+      };
+    };
+
+    ///
+    /// This function returns a set of transactions and pointers to archives if necessary.
+    ///
+    /// Arguments:
+    /// - `args`: The transaction range
+    ///
+    /// Returns:
+    /// - The result of getting transactions
+    public func get_blocks(args: Service.GetBlocksArgs) : Service.GetBlocksResult {
+      let coreResult = get_blocks_core(args);
+      
       //build the result
       return {
-        log_length = ledger_length;
-        certificate = CertifiedData.getCertificate(); //will be null in update calls
-        blocks = Vec.toArray(transactions);
-        archived_blocks = Iter.toArray<MigrationTypes.Current.ArchivedTransactionResponse>(Iter.map< (Vec.Vector<TransactionRange>, MigrationTypes.Current.GetTransactionsFn), MigrationTypes.Current.ArchivedTransactionResponse>(Map.vals(archives), func(x :(Vec.Vector<TransactionRange>, MigrationTypes.Current.GetTransactionsFn)):  MigrationTypes.Current.ArchivedTransactionResponse{
+        log_length = coreResult.ledger_length;
+        blocks = Vec.toArray(coreResult.blocks);
+        archived_blocks = Iter.toArray<Service.ArchivedBlock>(Iter.map<(Principal, Vec.Vector<TransactionRange>), Service.ArchivedBlock>(Map.entries(coreResult.archives), func(x :(Principal, Vec.Vector<TransactionRange>)):  Service.ArchivedBlock{
           {
-            args = Vec.toArray(x.0);
-            callback = x.1;
+            args = Vec.toArray(x.1);
+            callback = (actor(Principal.toText(x.0)) : MigrationTypes.Current.ICRC3Interface).icrc3_get_blocks;
           }
-
         }));
-      }
+      };
+    };
+    /// Legacy version of get_blocks that returns transactions in the legacy format
+    ///
+    /// This function uses the same core logic as get_blocks but converts the results
+    /// to legacy transaction format and uses legacy archive callbacks.
+    ///
+    /// Arguments:
+    /// - `args`: The GetBlocksRequest range
+    ///
+    /// Returns:
+    /// - Legacy transaction response with converted transactions
+    public func get_blocks_legacy(args: Legacy.GetBlocksRequest) : Legacy.GetTransactionsResponse {
+      // Convert single request to array format expected by core function
+      let coreArgs = [{start = args.start; length = args.length}];
+      let coreResult = get_blocks_core(coreArgs);
+      
+      // Convert ICRC-3 blocks to legacy transactions
+      let blockValues = Array.map<{id: Nat; block: Value}, Value>(Vec.toArray(coreResult.blocks), func(item) = item.block);
+      let legacyTransactions = Legacy.convertICRC3ToLegacyTransaction(blockValues);
+      
+      // Convert archives to legacy format
+      let legacyArchives = Array.map<(Principal, Vec.Vector<TransactionRange>), Legacy.LegacyArchivedRange>(
+        Iter.toArray(Map.entries(coreResult.archives)), 
+        func(archiveEntry: (Principal, Vec.Vector<TransactionRange>)): Legacy.LegacyArchivedRange {
+          let ranges = Vec.toArray(archiveEntry.1);
+          // For legacy, we need to flatten multiple ranges into single start/length
+          // Taking the first range as legacy format expects single range
+          let firstRange = if (ranges.size() > 0){ ranges[0] } else {{start = 0; length = 0}};
+          
+          {
+            callback = (actor(Principal.toText(archiveEntry.0)) : actor {
+              get_transactions: shared query (Legacy.GetBlocksRequest) -> async Legacy.GetArchiveTransactionsResponse;
+            }).get_transactions;
+            start = firstRange.start;
+            length = firstRange.length;
+          };
+        } 
+      );
+      
+      return {
+        first_index = if (legacyTransactions.size() > 0) state.firstIndex else 0;
+        log_length = coreResult.ledger_length;
+        transactions = legacyTransactions;
+        archived_transactions = legacyArchives;
+      };
     };
   };
-};
+}

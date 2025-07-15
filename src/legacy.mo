@@ -82,6 +82,32 @@ module {
     #Array : [Value];
   };
 
+  public type GetBlocksRequest = { start : Nat; length : Nat };
+
+  public type GetTransactionsResponse = {
+    first_index : Nat;
+    log_length : Nat;
+    transactions : [Transaction];
+    archived_transactions : [LegacyArchivedRange];
+  };
+
+  public type GetArchiveTransactionsResponse = {
+    
+    transactions : [Transaction];
+  };
+
+  public type LegacyArchivedRange = {
+    callback : GetLegacyArchiveTransactionFunction;
+    start : Nat;
+    length : Nat;
+  };
+
+  public type GetLegacyTransactionFunction = shared query GetBlocksRequest -> async GetTransactionsResponse;
+
+   public type GetLegacyArchiveTransactionFunction = shared query GetBlocksRequest -> async GetArchiveTransactionsResponse;
+
+
+
 
   public func convertICRC3ToLegacyTransaction(items: [Value]) : [Transaction] {
     let transactions = Buffer.Buffer<Transaction>(items.size());

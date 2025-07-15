@@ -1,5 +1,9 @@
 CHANGELOG
 
+v0.3.3
+
+- handle archive signature for legacy transactions
+
 v0.3.2
 
 - Faster SHA2

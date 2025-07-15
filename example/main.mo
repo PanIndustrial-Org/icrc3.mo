@@ -9,9 +9,11 @@ import CertTree "mo:ic-certification/CertTree";
 import ClassPlus "mo:class-plus";
 import Upgrade "../src/upgradeArchive";
 
+
 import D "mo:base/Debug";
 
 import ICRC3 "../src";
+import ICRC3Legacy "../src/legacy";
 
 shared(init_msg) actor class Example(_args: ?ICRC3.InitArgs) = this {
 
@@ -114,6 +116,10 @@ shared(init_msg) actor class Example(_args: ?ICRC3.InitArgs) = this {
 
   public query func icrc3_get_blocks(args: ICRC3.GetBlocksArgs) : async ICRC3.GetBlocksResult{
     return icrc3().get_blocks(args);
+  };
+
+  public query func get_transactions(args: ICRC3Legacy.GetBlocksRequest) : async ICRC3Legacy.GetTransactionsResponse{
+    return icrc3().get_blocks_legacy(args);
   };
 
   public query func icrc3_get_archives(args: ICRC3.GetArchivesArgs) : async ICRC3.GetArchivesResult{

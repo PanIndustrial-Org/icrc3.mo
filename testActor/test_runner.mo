@@ -10,6 +10,7 @@ import M "mo:matchers/Matchers";
 import S "mo:matchers/Suite";
 import T "mo:matchers/Testable";
 import Text "mo:base/Text";
+import Debug "mo:base/Debug";
 import Fake "fake";
 import RepIndy "mo:rep-indy-hash";
 
@@ -55,6 +56,7 @@ shared(init_msg) actor class() = this {
               S.test("testGetBlocksEndpointWithNonEmptyLedger", switch(await testGetBlocksEndpointWithNonEmptyLedger()){case(#success){true};case(_){false};}, M.equals<Bool>(T.bool(true))),
               S.test("testGetBlocksEndpointWithPaging", switch(await testGetBlocksEndpointWithPaging()){case(#success){true};case(_){false};}, M.equals<Bool>(T.bool(true))),
               S.test("testArchivedBlocksCallbackReturnsCorrectData", switch(await testArchivedBlocksCallbackReturnsCorrectData()){case(#success){true};case(_){false};}, M.equals<Bool>(T.bool(true))),
+              S.test("testGetBlocksLegacyCompatibility", switch(await testGetBlocksLegacyCompatibility()){case(#success){true};case(_){false};}, M.equals<Bool>(T.bool(true))),
               
               //S.test("testLatestBlockCertification", switch(await testLatestBlockCertification()){case(#success){true};case(_){false};}, M.equals<Bool>(T.bool(true))),
               S.test("testVerifyBlockLogIntegrity", switch(await testVerifyBlockLogIntegrity()){case(#success){true};case(_){false};}, M.equals<Bool>(T.bool(true))),
@@ -308,6 +310,89 @@ shared(init_msg) actor class() = this {
       return #success;
     };
 
+    public shared func testGetBlocksLegacyCompatibility() : async  { #success; #fail : Text }{
+      ExperimentalCycles.add<system>(10_000_000_000_000);
+      let ledger = await Example.Example(baseState);
+
+      // Populate the ledger with transactions exceeding the active records limit to create archives
+      for(thisItem in Iter.range(0,9)){
+        let transaction1 : ICRC3.Transaction = #Map([
+          ("op", #Text("test")),
+          ("value", #Nat(thisItem)),
+        ]);
+        let index1 = await ledger.add_record(transaction1);
+      };
+
+      // Create fake canisters to simulate rounds and trigger archiving
+      let fake1 = await Fake.Fake();
+      let fake2 = await Fake.Fake();
+      let fake3 = await Fake.Fake();
+      let fake4 = await Fake.Fake();
+
+      // Test range that spans both local and archived blocks
+      let testStart = 1;
+      let testLength = 8;
+
+      // Get blocks using the new get_blocks method
+      let newResult = await ledger.icrc3_get_blocks([{start = testStart; length = testLength}]);
+
+      // Get blocks using the legacy get_blocks_legacy method
+      let legacyResult = await ledger.get_transactions({start = testStart; length = testLength});
+
+      D.print("New method - log_length: " # debug_show(newResult.log_length));
+      D.print("New method - local blocks: " # debug_show(newResult.blocks.size()));
+      D.print("New method - archived blocks count: " # debug_show(newResult.archived_blocks.size()));
+
+      D.print("Legacy method - log_length: " # debug_show(legacyResult.log_length));
+      D.print("Legacy method - transactions: " # debug_show(legacyResult.transactions.size()));
+      D.print("Legacy method - archived transactions count: " # debug_show(legacyResult.archived_transactions.size()));
+
+      // Test that both methods return the same log length
+      let logLengthsMatch = newResult.log_length == legacyResult.log_length;
+
+      // Test that local data matches
+      let localCountMatches = newResult.blocks.size() == legacyResult.transactions.size();
+
+      // Test that archive count matches
+      let archiveCountMatches = newResult.archived_blocks.size() == legacyResult.archived_transactions.size();
+
+      // If we have archived blocks, test that they return the same data
+      var archiveDataMatches = true;
+      if (newResult.archived_blocks.size() > 0 and legacyResult.archived_transactions.size() > 0) {
+        Debug.print("Comparing archived block data");
+        let newArchiveCallback = newResult.archived_blocks[0];
+        let legacyArchiveCallback = legacyResult.archived_transactions[0];
+
+        D.print("New archive callback args: " # debug_show(newArchiveCallback.args));
+
+        let newArchiveResult = await newArchiveCallback.callback(newArchiveCallback.args);
+
+        Debug.print("New archive result blocks: " # debug_show((newArchiveResult.archived_blocks.size(), newArchiveResult.blocks.size())));
+
+        let legacyArchiveResult = await legacyArchiveCallback.callback({length = legacyArchiveCallback.length; start = legacyArchiveCallback.start});
+
+        D.print("Legacy archive result transactions: " # debug_show( (legacyArchiveResult.transactions.size(), legacyArchiveResult.transactions)));
+
+        archiveDataMatches := newArchiveResult.blocks.size() == legacyArchiveResult.transactions.size();
+        
+        D.print("Archive data - new method blocks: " # debug_show(newArchiveResult.blocks.size()));
+        D.print("Archive data - legacy method transactions: " # debug_show(legacyArchiveResult.transactions.size()));
+      };
+
+      let suite = S.suite(
+          "testGetBlocksLegacyCompatibility",
+          [
+            S.test("log lengths match", logLengthsMatch, M.equals<Bool>(T.bool(true))),
+            S.test("local block counts match", localCountMatches, M.equals<Bool>(T.bool(true))),
+            S.test("archive counts match", archiveCountMatches, M.equals<Bool>(T.bool(true))),
+            S.test("archive data matches", archiveDataMatches, M.equals<Bool>(T.bool(true)))
+          ]);
+
+      S.run(suite);
+
+      return #success;
+    };
+
     //this test won't work because retriving a cert from motoko always returns a null as the query is translated to an update call.
     /* public func testLatestBlockCertification() : async { #success; #fail : Text } {
       ExperimentalCycles.add(10_000_000_000_000);
@@ -489,7 +574,6 @@ shared(init_msg) actor class() = this {
           D.print("had error " # Error.message(e));
           { 
             archived_blocks = [];
-            certificate = null;
             log_length = 99999;
             blocks =[];
           };
