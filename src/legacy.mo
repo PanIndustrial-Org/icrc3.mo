@@ -29,7 +29,7 @@ module {
   public type GetArchivesResult = [
     { end : Nat; canister_id : Principal; start : Nat }
   ];
-  public type GetBlocksArgs = [{ start : Nat; length : Nat }];
+  public type GetBlocksArgs = { start : Nat; length : Nat };
   public type GetBlocksResult = {
     log_length : Nat;
     blocks : [{ id : Nat; block : ICRC3Value }];
@@ -174,7 +174,7 @@ module {
     Buffer.toArray(transactions);
   };
 
-  private func convertSingleTransaction(txMap: [(Text, Value)], _blockMap: [(Text, Value)], opType: Text, timestamp: Nat64) : Transaction {
+  private func convertSingleTransaction(txMap: [(Text, Value)], blockMap: [(Text, Value)], opType: Text, timestamp: Nat64) : Transaction {
     let kind = switch (opType) {
       case ("mint" or "1mint") "mint";
       case ("burn" or "1burn") "burn";
@@ -224,7 +224,7 @@ module {
           timestamp = timestamp;
           transfer = ?{
             to = extractAccount(txMap, "to");
-            fee = extractOptionalNat(txMap, "fee");
+            fee = extractFee(txMap, blockMap);
             from = extractAccount(txMap, "from");
             memo = extractMemo(txMap);
             created_at_time = extractCreatedAtTime(txMap);
@@ -239,7 +239,7 @@ module {
           kind = "approve";
           mint = null;
           approve = ?{
-            fee = extractOptionalNat(txMap, "fee");
+            fee = extractFee(txMap, blockMap);
             from = extractAccount(txMap, "from");
             memo = extractMemo(txMap);
             created_at_time = extractCreatedAtTime(txMap);
@@ -409,6 +409,17 @@ module {
       case (?#Nat64(ts)) ?ts;
       case (?#Nat(ts)) ?Nat64.fromNat(ts);
       case (_) null;
+    };
+  };
+
+  private func extractFee(txMap: [(Text, Value)], blockMap: [(Text, Value)]) : ?Nat {
+    // First check top-level block for fee
+    switch (getMapValue(blockMap, "fee")) {
+      case (?#Nat(value)) ?value;
+      case (_) {
+        // Fallback to fee in transaction map
+        extractOptionalNat(txMap, "fee");
+      };
     };
   };
 }

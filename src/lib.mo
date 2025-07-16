@@ -759,8 +759,10 @@ module {
       archives: Map.Map<Principal, Vec.Vector<TransactionRange>>;
     } {
 
-      debug if(debug_channel.get_transactions) D.print("get_transaction_states" # debug_show(stats()));
+      debug if(debug_channel.get_transactions) D.print("Vec.size(state.ledger)" # debug_show((Vec.size(state.ledger), Vec.toArray(state.ledger))));
       let local_ledger_length = Vec.size(state.ledger);
+
+
       let ledger_length = if(state.lastIndex == 0 and local_ledger_length == 0) {
         0;
       } else {
