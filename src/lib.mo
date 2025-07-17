@@ -115,10 +115,10 @@ module {
     onStorageChange : ((State) ->())
   }) :()-> ICRC3{
     
-    D.print("Subscriber Init");
+    //D.print("Subscriber Init");
     switch(config.pullEnvironment){
       case(?val) {
-        D.print("pull environment has value");
+        //D.print("pull environment has value");
         
       };
       case(null) {
@@ -757,10 +757,13 @@ module {
       ledger_length: Nat;
       blocks: Vec.Vector<{id: Nat; block: Value}>;
       archives: Map.Map<Principal, Vec.Vector<TransactionRange>>;
+      first_index: ?Nat;
     } {
 
       debug if(debug_channel.get_transactions) D.print("Vec.size(state.ledger)" # debug_show((Vec.size(state.ledger), Vec.toArray(state.ledger))));
       let local_ledger_length = Vec.size(state.ledger);
+
+      var first_index : ?Nat = null;
 
 
       let ledger_length = if(state.lastIndex == 0 and local_ledger_length == 0) {
@@ -817,6 +820,10 @@ module {
               debug if(debug_channel.get_transactions) D.print("testing" # debug_show(thisItem));
               if(thisItem >= Vec.size(state.ledger)){
                 break search;
+              };
+              if(first_index == null){
+                debug if(debug_channel.get_transactions) D.print("setting first index" # debug_show(state.firstIndex + thisItem));
+                first_index := ?(state.firstIndex + thisItem);
               };
               Vec.add(transactions, {
                   id = state.firstIndex + thisItem;
@@ -880,6 +887,7 @@ module {
         ledger_length = ledger_length;
         blocks = transactions;
         archives = archives;
+        first_index = first_index;
       };
     };
 
@@ -944,8 +952,13 @@ module {
         } 
       );
       
+      debug if(debug_channel.get_transactions) D.print("Returning legacy transactions result" # debug_show(coreResult.ledger_length, coreResult.first_index, state.firstIndex, Map.size(coreResult.archives)));
+
       return {
-        first_index = if (legacyTransactions.size() > 0) state.firstIndex else 0;
+        first_index = switch(coreResult.first_index){
+          case(null) state.firstIndex;
+          case(?val) val;
+        };
         log_length = coreResult.ledger_length;
         transactions = legacyTransactions;
         archived_transactions = legacyArchives;
